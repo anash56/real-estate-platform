@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  fullName          String
+  role              String   // BUYER, AGENT, ADMIN
+  emailVerified     Boolean  @default(false)
+  phoneVerified     Boolean  @default(false)
+  phone             String?  @unique
+  profilePhoto      String?
+  
+  properties        Property[] @relation("AgentProperties")
+  inquiries         Inquiry[]
+  reviews           Review[]
+  favorites         Favorite[]
+  agreements        UserAgreement[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([role])
+}
+
+model Property {
+  id                String   @id @default(cuid())
+  agentId           String
+  agent             User     @relation("AgentProperties", fields: [agentId], references: [id])
+  
+  title             String
+  description       String   @db.Text
+  propertyType      String
+  bedrooms          Int
+  bathrooms         Int
+  area              Float
+  
+  address           String
+  city              String
+  state             String
+  pincode           String
+  latitude          Float
+  longitude         Float
+  
+  price             BigInt
+  builtYear         Int?
+  facing            String?
+  amenities         String[]
+  
+  status            String   @default("DRAFT")
+  moderationStatus  String   @default("PENDING_REVIEW")
+  
+  images            PropertyImage[]
+  inquiries         Inquiry[]
+  reviews           Review[]
+  favorites         Favorite[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([agentId])
+  @@index([city])
+  @@index([status])
+}
+
+model PropertyImage {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  imageUrl          String
+  order             Int
+  isMainImage       Boolean  @default(false)
+  uploadedAt        DateTime @default(now())
+  
+  @@index([propertyId])
+}
+
+model Inquiry {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id])
+  
+  buyerId           String
+  buyer             User     @relation(fields: [buyerId], references: [id])
+  
+  message           String
+  budget            BigInt?
+  status            String   @default("NEW")
+  
+  buyerEmailHidden  Boolean  @default(true)
+  buyerPhoneHidden  Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([propertyId])
+  @@index([buyerId])
+}
+
+model Review {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id])
+  
+  reviewerId        String
+  reviewer          User     @relation(fields: [reviewerId], references: [id])
+  
+  rating            Int
+  title             String
+  description       String   @db.Text
+  isVerified        Boolean  @default(false)
+  isApproved        Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([propertyId])
+}
+
+model Favorite {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  addedAt           DateTime @default(now())
+  
+  @@unique([userId, propertyId])
+}
+
+model UserAgreement {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  agreementType     String
+  accepted          Boolean  @default(false)
+  acceptedAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([userId])
+}
