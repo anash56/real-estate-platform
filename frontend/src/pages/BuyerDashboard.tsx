@@ -63,6 +63,27 @@ export default function BuyerDashboard() {
     }
   };
 
+  const handleRemoveFavorite = async (propertyId: string) => {
+    if (!window.confirm('Are you sure you want to remove this property from your saved list?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/properties/${propertyId}/favorite`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSavedProperties(savedProperties.filter(p => p.id !== propertyId));
+      } else {
+        alert(data.error || 'Failed to remove favorite');
+      }
+    } catch (error) {
+      alert('Network error while removing favorite');
+    }
+  };
+
   if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading your dashboard...</div>;
 
   return (
@@ -102,7 +123,10 @@ export default function BuyerDashboard() {
                     <Link to={`/property/${property.id}`} className="flex-1 bg-gray-100 text-center py-2 rounded font-semibold hover:bg-gray-200 transition">
                       View Details
                     </Link>
-                    <button className="px-4 border border-red-200 text-red-500 rounded hover:bg-red-50 transition">
+                    <button 
+                      onClick={() => handleRemoveFavorite(property.id)}
+                      className="px-4 border border-red-200 text-red-500 rounded hover:bg-red-50 transition"
+                    >
                       Remove
                     </button>
                   </div>
@@ -131,21 +155,31 @@ export default function BuyerDashboard() {
                     <p className="text-sm text-gray-600 mt-1">Sent to: {inquiry.property?.agent?.fullName || 'Agent'} • {new Date(inquiry.createdAt).toLocaleDateString()}</p>
                   </div>
                   {inquiry.buyerEmailHidden ? (
-                    <div className="flex flex-col items-end gap-2">
-                      <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-green-200">
-                        🛡️ Contact Info Hidden
-                      </span>
-                      <button 
-                        onClick={() => handleRevealContactInfo(inquiry.id)}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline font-semibold transition"
-                      >
-                        Reveal my contact info
-                      </button>
+                    <div className="flex flex-col items-end">
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-green-200">
+                          🛡️ Contact Info Hidden
+                        </span>
+                        <button 
+                          onClick={() => handleRevealContactInfo(inquiry.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline font-semibold transition"
+                        >
+                          Reveal my contact info
+                        </button>
+                      </div>
+                      <Link to={`/chat/${inquiry.id}`} className="mt-2 inline-block bg-green-600 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-700 transition shadow">
+                        💬 Open Live Chat
+                      </Link>
                     </div>
                   ) : (
-                    <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-blue-200">
-                      ✅ Contact Info Revealed
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-blue-200">
+                        ✅ Contact Info Revealed
+                      </span>
+                      <Link to={`/chat/${inquiry.id}`} className="bg-green-600 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-700 transition shadow">
+                        💬 Open Live Chat
+                      </Link>
+                    </div>
                   )}
                 </div>
                 <p className="text-gray-800 bg-gray-50 p-4 rounded-lg italic border border-gray-100">

@@ -134,7 +134,7 @@ router.get('/agent', auth, async (req: Request, res: Response) => {
     });
 
     // Safely convert BigInt to string
-    const formattedProperties = properties.map(p => ({ ...p, price: p.price.toString() }));
+    const formattedProperties = properties.map((p: any) => ({ ...p, price: p.price.toString() }));
     
     res.json({ success: true, data: formattedProperties });
   } catch (error) {
@@ -157,7 +157,7 @@ router.get('/favorites', auth, async (req: Request, res: Response) => {
     });
 
     // Extract the nested property and safely convert BigInt price to string
-    const formattedFavorites = favorites.map(fav => ({
+    const formattedFavorites = favorites.map((fav: any) => ({
       ...fav.property,
       price: fav.property.price.toString()
     }));
@@ -182,7 +182,12 @@ router.get('/:id', async (req: Request, res: Response) => {
       include: {
         agent: { select: { fullName: true, email: true, phone: true } },
         defectDisclosure: true,
-        legalDocuments: true
+        legalDocuments: true,
+        reviews: {
+          where: { isApproved: true },
+          include: { reviewer: { select: { fullName: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
 
@@ -246,7 +251,43 @@ router.delete('/:id/favorite', auth, async (req: Request, res: Response) => {
 });
 
 // ============================================
-// ROUTE 8: PUT /api/properties/:id
+// ROUTE 8: POST /api/properties/:id/reviews
+// ============================================
+// Leave a review on a property
+
+router.post('/:id/reviews', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { rating, title, description } = req.body;
+
+    const property = await prisma.property.findUnique({
+      where: { id: id as string }
+    });
+
+    if (!property) {
+      return res.status(404).json({ success: false, error: 'Property not found' });
+    }
+
+    const review = await (prisma as any).review.create({
+      data: {
+        propertyId: id as string,
+        reviewerId: req.userId as string,
+        rating: Number(rating),
+        title,
+        description
+      },
+      include: { reviewer: { select: { fullName: true } } }
+    });
+
+    res.status(201).json({ success: true, message: 'Review added successfully', data: review });
+  } catch (error) {
+    console.error('❌ Add review error:', error);
+    res.status(500).json({ success: false, error: 'Failed to submit review' });
+  }
+});
+
+// ============================================
+// ROUTE 9: PUT /api/properties/:id
 // ============================================
 // Update an existing property listing
 

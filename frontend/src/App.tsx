@@ -7,6 +7,8 @@ import CreateListing from './pages/CreateListing';
 import Login from './pages/Login';
 import Navbar from './components/Navbar';
 import EditListing from './pages/EditListing';
+import ModerationDashboard from './pages/ModerationDashboard';
+import LiveChat from './pages/LiveChat';
 
 function App() {
   return (
@@ -18,8 +20,10 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard/buyer" element={<BuyerDashboard />} />
         <Route path="/dashboard/agent" element={<AgentDashboard />} />
+        <Route path="/dashboard/admin" element={<ModerationDashboard />} />
         <Route path="/listings/new" element={<CreateListing />} />
         <Route path="/listings/edit/:id" element={<EditListing />} />
+        <Route path="/chat/:inquiryId" element={<LiveChat />} />
       </Routes>
     </BrowserRouter>
   );

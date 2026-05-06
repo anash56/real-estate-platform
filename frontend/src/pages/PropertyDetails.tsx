@@ -10,6 +10,11 @@ export default function PropertyDetails() {
   const [inquiryText, setInquiryText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewDescription, setReviewDescription] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -101,6 +106,40 @@ export default function PropertyDetails() {
       }
     } catch (err) {
       alert('Network error while updating favorites');
+    }
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to leave a review.');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/properties/${id}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ rating: reviewRating, title: reviewTitle, description: reviewDescription })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert('Review submitted successfully!');
+        // Update local state to instantly display the new review
+        setProperty({ ...property, reviews: [data.data, ...(property.reviews || [])] });
+        setReviewTitle('');
+        setReviewDescription('');
+        setReviewRating(5);
+      } else {
+        alert(data.error || 'Failed to submit review');
+      }
+    } catch (err) {
+      alert('Network error while submitting review');
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -223,6 +262,69 @@ export default function PropertyDetails() {
                 className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {isSubmitting ? 'Sending...' : 'Send Secure Inquiry'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* Property Reviews Section */}
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <h2 className="text-2xl font-bold mb-6">Property Reviews</h2>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Reviews List */}
+          <div className="lg:col-span-2 space-y-6">
+            {property.reviews && property.reviews.length > 0 ? (
+              property.reviews.map((review: any) => (
+                <div key={review.id} className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-bold text-lg text-gray-900">{review.title}</h4>
+                      <p className="text-sm text-gray-500">By {review.reviewer?.fullName} on {new Date(review.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex text-yellow-400 text-lg">
+                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                    </div>
+                  </div>
+                  <p className="text-gray-700 mt-2">{review.description}</p>
+                </div>
+              ))
+            ) : (
+              <div className="bg-gray-50 p-8 text-center rounded-xl border border-gray-100 text-gray-500">
+                No reviews yet. Be the first to leave one!
+              </div>
+            )}
+          </div>
+
+          {/* Review Form */}
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100 h-fit">
+            <h3 className="text-xl font-bold mb-4">Write a Review</h3>
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                <select className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={reviewRating} onChange={(e) => setReviewRating(Number(e.target.value))}>
+                  <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                  <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                  <option value="3">⭐⭐⭐ (3/5)</option>
+                  <option value="2">⭐⭐ (2/5)</option>
+                  <option value="1">⭐ (1/5)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input type="text" required className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Great neighborhood!" value={reviewTitle} onChange={(e) => setReviewTitle(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Review</label>
+                <textarea required className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500 h-24" placeholder="Share your experience visiting this property..." value={reviewDescription} onChange={(e) => setReviewDescription(e.target.value)} />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isSubmittingReview}
+                className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
               </button>
             </form>
           </div>

@@ -2,6 +2,8 @@
 
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { prisma } from './utils/prisma';
 
@@ -16,6 +18,7 @@ import moderationRoutes from './routes/moderation';
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -24,6 +27,35 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Socket.io setup
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('User connected to live chat:', socket.id);
+
+  socket.on('join_room', (inquiryId) => {
+    socket.join(inquiryId);
+  });
+
+  socket.on('send_message', async (data) => {
+    const { inquiryId, senderId, content } = data;
+    try {
+      const message = await prisma.message.create({
+        data: { inquiryId, senderId, content },
+        include: { sender: { select: { fullName: true, role: true } } }
+      });
+      io.to(inquiryId).emit('receive_message', message);
+    } catch (error) {
+      console.error('Socket message error:', error);
+    }
+  });
+});
 
 // Health check
 app.get('/api/health', async (req, res) => {
@@ -60,7 +92,7 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║  🚀 SERVER RUNNING                     ║

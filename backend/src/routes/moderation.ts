@@ -36,7 +36,7 @@ router.get('/queue', auth, async (req: Request, res: Response) => {
     });
 
     // Safely convert BigInt price to string for JSON serialization
-    const formattedProperties = properties.map(p => ({
+    const formattedProperties = properties.map((p: any) => ({
       ...p,
       price: p.price.toString()
     }));
@@ -107,6 +107,79 @@ router.post('/:propertyId/reject', auth, async (req: Request, res: Response) => 
   } catch (error) {
     console.error('❌ Property rejection error:', error);
     res.status(500).json({ success: false, error: 'Failed to reject property' });
+  }
+});
+
+// ============================================
+// ROUTE: GET /api/moderation/reviews
+// ============================================
+// Fetch all reviews for moderation
+
+router.get('/reviews', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const reviews = await (prisma as any).review.findMany({
+      include: {
+        reviewer: { select: { fullName: true, email: true } },
+        property: { select: { title: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, data: reviews });
+  } catch (error) {
+    console.error('❌ Fetch moderation reviews error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch reviews' });
+  }
+});
+
+// ============================================
+// ROUTE: PUT /api/moderation/reviews/:id/toggle-approval
+// ============================================
+// Ban/Hide or Approve a review
+
+router.put('/reviews/:id/toggle-approval', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+    const { id } = req.params;
+    const review = await (prisma as any).review.findUnique({ where: { id } });
+    if (!review) return res.status(404).json({ success: false, error: 'Review not found' });
+
+    const updatedReview = await (prisma as any).review.update({
+      where: { id },
+      data: { isApproved: !review.isApproved }
+    });
+
+    res.json({ success: true, message: 'Review status updated', data: updatedReview });
+  } catch (error) {
+    console.error('❌ Toggle review approval error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update review status' });
+  }
+});
+
+// ============================================
+// ROUTE: DELETE /api/moderation/reviews/:id
+// ============================================
+// Delete an inappropriate review permanently
+
+router.delete('/reviews/:id', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+    const { id } = req.params;
+    await (prisma as any).review.delete({ where: { id } });
+
+    res.json({ success: true, message: 'Review deleted successfully' });
+  } catch (error) {
+    console.error('❌ Delete review error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete review' });
   }
 });
 

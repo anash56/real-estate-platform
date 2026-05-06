@@ -75,7 +75,7 @@ router.get('/received', auth, async (req: Request, res: Response) => {
     });
 
     // 🛡️ ENFORCE PRIVACY: Mask the buyer's email/phone before sending to agent
-    const maskedInquiries = inquiries.map(inq => ({
+    const maskedInquiries = inquiries.map((inq: any) => ({
       ...inq,
       budget: inq.budget?.toString(),
       buyer: {
@@ -106,7 +106,7 @@ router.get('/sent', auth, async (req: Request, res: Response) => {
     });
 
     // Safe conversion of BigInt
-    const formattedInquiries = inquiries.map(inq => ({ ...inq, budget: inq.budget?.toString() }));
+    const formattedInquiries = inquiries.map((inq: any) => ({ ...inq, budget: inq.budget?.toString() }));
     res.json({ success: true, data: formattedInquiries });
   } catch (error) {
     console.error('❌ Fetch sent inquiries error:', error);
@@ -180,6 +180,27 @@ router.put('/:id/reveal', auth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Reveal contact info error:', error);
     res.status(500).json({ success: false, error: 'Failed to reveal contact info' });
+  }
+});
+
+// ============================================
+// ROUTE: GET /api/inquiries/:id/messages
+// ============================================
+// Get chat history for an inquiry
+
+router.get('/:id/messages', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const messages = await (prisma as any).message.findMany({
+      where: { inquiryId: id as string },
+      include: { sender: { select: { fullName: true, role: true } } },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    console.error('❌ Fetch messages error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch messages' });
   }
 });
 

@@ -21,6 +21,7 @@ model User {
   properties        Property[] @relation("AgentProperties")
   inquiries         Inquiry[]
   reviews           Review[]
+  messages          Message[]
   favorites         Favorite[]
   agreements        UserAgreement[]
   
@@ -106,9 +107,25 @@ model Inquiry {
   createdAt         DateTime @default(now())
   agentResponse     String?  @db.Text
   respondedAt       DateTime?
+  messages          Message[]
   
   @@index([propertyId])
   @@index([buyerId])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  inquiryId   String
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  
+  senderId    String
+  sender      User     @relation(fields: [senderId], references: [id])
+  
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+  
+  @@index([inquiryId])
+  @@index([senderId])
 }
 
 model Review {

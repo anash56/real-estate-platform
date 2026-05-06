@@ -6,7 +6,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'BUYER' | 'AGENT'>('BUYER');
+  const [role, setRole] = useState<'BUYER' | 'AGENT' | 'ADMIN'>('BUYER');
   
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -36,7 +36,8 @@ export default function Login() {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('userRole', data.data.user.role);
         
-        navigate(data.data.user.role === 'AGENT' ? '/dashboard/agent' : '/dashboard/buyer');
+        const userRole = data.data.user.role;
+        navigate(userRole === 'AGENT' ? '/dashboard/agent' : userRole === 'ADMIN' ? '/dashboard/admin' : '/dashboard/buyer');
       } else {
         alert(`Error: ${data.error}`);
       }
@@ -83,6 +84,13 @@ export default function Login() {
                   className={`flex-1 py-3 rounded-lg border font-bold ${role === 'AGENT' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                   I'm an Agent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('ADMIN')}
+                  className={`flex-1 py-3 rounded-lg border font-bold ${role === 'ADMIN' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  I'm an Admin
                 </button>
               </div>
 

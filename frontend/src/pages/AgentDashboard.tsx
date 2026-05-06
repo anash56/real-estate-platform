@@ -154,6 +154,10 @@ export default function AgentDashboard() {
                     <p>📧 {inquiry.buyer?.email}</p>
                     <p>📞 {inquiry.buyer?.phone || 'Not provided'}</p>
                   </div>
+                  
+                  <Link to={`/chat/${inquiry.id}`} className="inline-block mt-3 bg-green-600 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-700 transition shadow">
+                    💬 Open Live Chat
+                  </Link>
                 </div>
               </div>
               <p className="text-gray-800 bg-gray-50 p-4 rounded-lg italic border border-gray-100 mb-4">"{inquiry.message}"</p>
