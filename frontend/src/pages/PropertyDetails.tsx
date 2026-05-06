@@ -1,47 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 
 export default function PropertyDetails() {
-  // MOCK DATA: We will replace this with a real API call later
-  const property = {
-    id: 'prop_123',
-    title: 'Modern 3BHK Apartment in City Center',
-    price: '1,25,00,000',
-    address: '123 Main Street, Downtown',
-    city: 'Mumbai',
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 1500,
-    description: 'A beautiful and spacious apartment located in the heart of the city. Perfect for families looking for modern amenities and great connectivity.',
-    agent: {
-      name: 'Rahul Sharma',
-      phone: '+91 98765 43210'
-    },
-    badges: {
-      isVerified: true, // Documents checked by admin
-      hasDefectDisclosure: true // Agent signed off on structural/legal issues
-    },
-    disclosures: {
-      hasStructuralIssues: false,
-      hasLegalDisputes: false,
-      hasPreviousDamage: true,
-      previousDamageDetails: 'Minor water seepage in guest bathroom in 2021, fully repaired.'
-    }
-  };
+  const { id } = useParams<{ id: string }>();
+  const [property, setProperty] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [inquiryText, setInquiryText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInquirySubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchProperty = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/properties/${id}`);
+        const data = await res.json();
+        if (data.success) {
+          setProperty(data.data);
+        } else {
+          setError(data.error || 'Failed to load property');
+        }
+      } catch (err) {
+        setError('Network error occurred while fetching property');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProperty();
+  }, [id]);
+
+  const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to send an inquiry.');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Mock API call delay
-    setTimeout(() => {
-      alert('Inquiry sent securely! Your contact information has been hidden from the agent to protect your privacy.');
+    try {
+      const res = await fetch(`http://localhost:5000/api/inquiries/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ message: inquiryText })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert('Inquiry sent securely! Your contact information has been hidden from the agent to protect your privacy.');
+        setInquiryText('');
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      alert('Network error while sending inquiry');
+    } finally {
       setIsSubmitting(false);
-      setInquiryText('');
-    }, 1000);
+    }
   };
+
+  if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading property details...</div>;
+  if (error || !property) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-red-600">{error || 'Property not found'}</div>;
+
+  const isVerified = property.legalDocuments && property.legalDocuments.length > 0;
+  const hasDefectDisclosure = property.defectDisclosure?.agentSignedOff;
 
   return (
     <div className="max-w-6xl mx-auto p-6 mt-8">
@@ -58,12 +81,12 @@ export default function PropertyDetails() {
 
       {/* Verification Badges (Ethical Platform Feature) */}
       <div className="flex gap-4 mb-8">
-        {property.badges.isVerified && (
+        {isVerified && (
           <span className="bg-green-100 text-green-800 px-4 py-2 rounded-md font-semibold flex items-center gap-2 border border-green-200">
             ✅ Legal Documents Verified
           </span>
         )}
-        {property.badges.hasDefectDisclosure && (
+        {hasDefectDisclosure && (
           <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-md font-semibold flex items-center gap-2 border border-blue-200">
             📝 Agent Defect Disclosure Signed
           </span>
@@ -101,20 +124,20 @@ export default function PropertyDetails() {
             <ul className="space-y-3">
               <li className="flex justify-between">
                 <span>Structural Issues:</span>
-                <span className="font-bold">{property.disclosures.hasStructuralIssues ? '⚠️ Yes' : '✅ None'}</span>
+                <span className="font-bold">{property.defectDisclosure?.hasStructuralIssues ? '⚠️ Yes' : '✅ None'}</span>
               </li>
               <li className="flex justify-between">
                 <span>Legal Disputes:</span>
-                <span className="font-bold">{property.disclosures.hasLegalDisputes ? '⚠️ Yes' : '✅ None'}</span>
+                <span className="font-bold">{property.defectDisclosure?.hasLegalDisputes ? '⚠️ Yes' : '✅ None'}</span>
               </li>
               <li className="flex justify-between border-t border-orange-200 pt-2 mt-2">
                 <span>Previous Damage:</span>
-                <span className="font-bold">{property.disclosures.hasPreviousDamage ? '⚠️ Yes' : '✅ None'}</span>
+                <span className="font-bold">{property.defectDisclosure?.hasPreviousDamage ? '⚠️ Yes' : '✅ None'}</span>
               </li>
-              {property.disclosures.hasPreviousDamage && (
+              {property.defectDisclosure?.hasPreviousDamage && (
                 <li className="text-sm text-gray-600 bg-white p-3 rounded mt-1">
                   <span className="font-semibold block">Agent Details:</span> 
-                  {property.disclosures.previousDamageDetails}
+                  {property.defectDisclosure?.previousDamageDetails}
                 </li>
               )}
             </ul>

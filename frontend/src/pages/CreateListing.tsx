@@ -33,7 +33,7 @@ export default function CreateListing() {
     setDocuments([...documents, { type: docType, name: `mock_document_${Date.now()}.pdf` }]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!disclosures.agentSignedOff) {
       alert('You must sign off on the defect disclosures to proceed.');
@@ -41,13 +41,64 @@ export default function CreateListing() {
     }
 
     setIsSubmitting(true);
+    const token = localStorage.getItem('token');
     
-    // Mock API Submit
-    setTimeout(() => {
-      alert('Listing created successfully! It is now pending admin moderation.');
-      setIsSubmitting(false);
+    try {
+      // 1. Create Property Record
+      const propertyPayload = {
+        title: propertyDetails.title,
+        description: propertyDetails.description || 'Description not provided',
+        propertyType: propertyDetails.propertyType,
+        price: propertyDetails.price || 0,
+        address: propertyDetails.address || 'Address not provided',
+        city: propertyDetails.city || 'City not provided',
+        // Mock data for missing fields required by the database schema
+        state: 'State',
+        pincode: '000000',
+        bedrooms: 1,
+        bathrooms: 1,
+        area: 1000,
+        latitude: 0.0,
+        longitude: 0.0,
+        amenities: [],
+        isDraft: false
+      };
+
+      const propRes = await fetch('http://localhost:5000/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(propertyPayload)
+      });
+      
+      const propData = await propRes.json();
+      if (!propData.success) throw new Error(propData.error || 'Failed to create property');
+      
+      const propertyId = propData.data.property.id;
+
+      // 2. Upload Legal Documents (Mocking the URLs for now)
+      for (const doc of documents) {
+        await fetch(`http://localhost:5000/api/documents/${propertyId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ documentType: doc.type, documentUrl: `https://fake-storage.com/${doc.name}` })
+        });
+      }
+
+      // 3. Submit Defect Disclosure
+      await fetch(`http://localhost:5000/api/defects/${propertyId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ...disclosures, hasPreviousDamage: false, hasEnvironmentalHazards: false })
+      });
+
+      alert('Listing created successfully! Auto-moderation has been applied.');
       navigate('/dashboard/agent');
-    }, 1500);
+    } catch (error: any) {
+      console.error(error);
+      alert(`Error submitting listing: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

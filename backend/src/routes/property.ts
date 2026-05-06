@@ -80,4 +80,122 @@ router.post('/', auth, async (req: Request, res: Response) => {
   }
 });
 
+// ============================================
+// ROUTE 2: GET /api/properties
+// ============================================
+// Get all public active properties
+
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const { search } = req.query;
+    const whereClause: any = {
+      status: 'ACTIVE',
+      moderationStatus: 'APPROVED'
+    };
+
+    if (search) {
+      whereClause.OR = [
+        { title: { contains: search as string, mode: 'insensitive' } },
+        { city: { contains: search as string, mode: 'insensitive' } },
+        { address: { contains: search as string, mode: 'insensitive' } },
+        { propertyType: { contains: search as string, mode: 'insensitive' } }
+      ];
+    }
+
+    const properties = await (prisma as any).property.findMany({
+      where: whereClause,
+      include: {
+        legalDocuments: true,
+        defectDisclosure: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 9 // Limit to 9 recent properties for the home page grid
+    });
+
+    const formattedProperties = properties.map((p: any) => ({ ...p, price: p.price.toString() }));
+    
+    res.json({ success: true, data: formattedProperties });
+  } catch (error) {
+    console.error('❌ Fetch public properties error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch properties' });
+  }
+});
+
+// ============================================
+// ROUTE 3: GET /api/properties/agent
+// ============================================
+// Get all properties listed by the logged-in agent
+
+router.get('/agent', auth, async (req: Request, res: Response) => {
+  try {
+    const properties = await prisma.property.findMany({
+      where: { agentId: req.userId as string },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Safely convert BigInt to string
+    const formattedProperties = properties.map(p => ({ ...p, price: p.price.toString() }));
+    
+    res.json({ success: true, data: formattedProperties });
+  } catch (error) {
+    console.error('❌ Fetch agent properties error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch agent properties' });
+  }
+});
+
+// ============================================
+// ROUTE 4: GET /api/properties/favorites
+// ============================================
+// Get all saved properties for the logged-in user
+
+router.get('/favorites', auth, async (req: Request, res: Response) => {
+  try {
+    const favorites = await prisma.favorite.findMany({
+      where: { userId: req.userId as string },
+      include: { property: true },
+      orderBy: { addedAt: 'desc' }
+    });
+
+    // Extract the nested property and safely convert BigInt price to string
+    const formattedFavorites = favorites.map(fav => ({
+      ...fav.property,
+      price: fav.property.price.toString()
+    }));
+
+    res.json({ success: true, data: formattedFavorites });
+  } catch (error) {
+    console.error('❌ Fetch favorites error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch saved properties' });
+  }
+});
+
+// ============================================
+// ROUTE 5: GET /api/properties/:id
+// ============================================
+// Get single property details (Public Route)
+
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const property = await (prisma as any).property.findUnique({
+      where: { id: id as string },
+      include: {
+        agent: { select: { fullName: true, email: true, phone: true } },
+        defectDisclosure: true,
+        legalDocuments: true
+      }
+    });
+
+    if (!property) {
+      return res.status(404).json({ success: false, error: 'Property not found' });
+    }
+
+    // Safely convert BigInt to string
+    res.json({ success: true, data: { ...property, price: property.price.toString() } });
+  } catch (error) {
+    console.error('❌ Fetch property error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch property details' });
+  }
+});
+
 export default router;

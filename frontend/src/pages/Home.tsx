@@ -1,49 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [properties, setProperties] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // MOCK DATA: Featured properties with ethical badges
-  const featuredProperties = [
-    {
-      id: 'prop_123',
-      title: 'Modern 3BHK Apartment in City Center',
-      price: '1,25,00,000',
-      address: 'Downtown, Mumbai',
-      beds: 3,
-      baths: 2,
-      area: 1500,
-      badges: { isVerified: true, hasDisclosure: true },
-      imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'prop_124',
-      title: 'Spacious 4BHK Villa with Garden',
-      price: '3,50,00,000',
-      address: 'Koramangala, Bangalore',
-      beds: 4,
-      baths: 4,
-      area: 3200,
-      badges: { isVerified: true, hasDisclosure: false },
-      imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'prop_125',
-      title: 'Cozy 2BHK Near Tech Park',
-      price: '85,00,000',
-      address: 'Hitec City, Bangalore',
-      beds: 2,
-      baths: 2,
-      area: 1100,
-      badges: { isVerified: true, hasDisclosure: true },
-      imageUrl: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=400&q=80'
+  const fetchProperties = async (query = '') => {
+    setIsLoading(true);
+    try {
+      const url = query 
+        ? `http://localhost:5000/api/properties?search=${encodeURIComponent(query)}` 
+        : 'http://localhost:5000/api/properties';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) setProperties(data.data);
+    } catch (error) {
+      console.error('Failed to fetch properties:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchProperties();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    alert(`Search functionality will be wired up later! You searched for: ${searchQuery}`);
+    fetchProperties(searchQuery);
   };
 
   return (
@@ -99,21 +84,26 @@ export default function Home() {
       <div className="max-w-6xl mx-auto py-16 px-6">
         <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Verified Properties</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredProperties.map((property) => (
+        {isLoading ? (
+          <div className="text-center text-gray-500 py-10">Loading latest properties...</div>
+        ) : properties.length === 0 ? (
+          <div className="text-center text-gray-500 py-10">No verified properties found yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {properties.map((property) => (
             <Link to={`/property/${property.id}`} key={property.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition block group">
               {/* Property Image */}
               <div className="h-56 overflow-hidden relative">
-                <img src={property.imageUrl} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                <img src={property.imageUrl || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                 
                 {/* Floating Badges */}
                 <div className="absolute top-3 left-3 flex flex-col gap-2">
-                  {property.badges.isVerified && (
+                  {property.legalDocuments && property.legalDocuments.length > 0 && (
                     <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                       ✓ Verified Docs
                     </span>
                   )}
-                  {property.badges.hasDisclosure && (
+                  {property.defectDisclosure?.agentSignedOff && (
                     <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                       ✓ Disclosure Signed
                     </span>
@@ -129,13 +119,14 @@ export default function Home() {
                 <div className="flex justify-between items-center border-t pt-4">
                   <p className="text-2xl font-extrabold text-blue-600">₹{property.price}</p>
                   <div className="text-gray-600 text-sm font-medium">
-                    {property.beds} Bed • {property.baths} Bath
+                    {property.bedrooms} Bed • {property.bathrooms} Bath
                   </div>
                 </div>
               </div>
             </Link>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

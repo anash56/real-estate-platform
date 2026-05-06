@@ -11,26 +11,40 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // MOCK API CALL: We will replace this with a real fetch to /api/auth/login or /api/auth/signup
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Set mock auth data
-      localStorage.setItem('token', 'mock_jwt_token_123');
-      localStorage.setItem('userRole', isLogin ? 'BUYER' : role); // Hardcoded logic for UI testing
+    try {
+      const endpoint = isLogin 
+        ? 'http://localhost:5000/api/auth/login' 
+        : 'http://localhost:5000/api/auth/signup';
+        
+      const payload = isLogin 
+        ? { email, password } 
+        : { email, password, fullName, role };
 
-      // Redirect to the appropriate dashboard
-      const targetRole = isLogin ? 'BUYER' : role;
-      if (targetRole === 'AGENT') {
-        navigate('/dashboard/agent');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('userRole', data.data.user.role);
+        
+        navigate(data.data.user.role === 'AGENT' ? '/dashboard/agent' : '/dashboard/buyer');
       } else {
-        navigate('/dashboard/buyer');
+        alert(`Error: ${data.error}`);
       }
-    }, 1000);
+    } catch (error) {
+      alert('Network error. Please make sure the backend server is running.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

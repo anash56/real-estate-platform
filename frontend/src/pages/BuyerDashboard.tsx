@@ -1,42 +1,48 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function BuyerDashboard() {
   const [activeTab, setActiveTab] = useState<'saved' | 'inquiries'>('saved');
+  const [savedProperties, setSavedProperties] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // MOCK DATA: Saved Properties
-  const savedProperties = [
-    {
-      id: 'prop_123',
-      title: 'Modern 3BHK Apartment in City Center',
-      price: '1,25,00,000',
-      address: 'Downtown, Mumbai',
-      badges: { isVerified: true, hasDisclosure: true },
-      imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'
-    },
-    {
-      id: 'prop_125',
-      title: 'Cozy 2BHK Near Tech Park',
-      price: '85,00,000',
-      address: 'Hitec City, Bangalore',
-      badges: { isVerified: true, hasDisclosure: true },
-      imageUrl: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=400&q=80'
-    }
-  ];
+  useEffect(() => {
+    const fetchBuyerData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
 
-  // MOCK DATA: Sent Inquiries
-  const inquiries = [
-    {
-      id: 'inq_1',
-      propertyId: 'prop_123',
-      propertyTitle: 'Modern 3BHK Apartment in City Center',
-      agentName: 'Rahul Sharma',
-      message: 'Hi, I am interested in this property. Is the price negotiable? I would like to schedule a viewing for this weekend.',
-      status: 'DELIVERED',
-      date: 'Oct 24, 2023',
-      isPrivacyActive: true
-    }
-  ];
+      try {
+        // Fetch Sent Inquiries
+        const inqRes = await fetch('http://localhost:5000/api/inquiries/sent', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const inqData = await inqRes.json();
+        if (inqData.success) setInquiries(inqData.data);
+
+        // Fetch Saved Properties (Assuming endpoint /api/properties/favorites)
+        const favRes = await fetch('http://localhost:5000/api/properties/favorites', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (favRes.ok) {
+          const favData = await favRes.json();
+          if (favData.success) setSavedProperties(favData.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch buyer dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBuyerData();
+  }, [navigate]);
+
+  if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading your dashboard...</div>;
 
   return (
     <div className="max-w-6xl mx-auto p-6 mt-8 min-h-screen">
@@ -66,7 +72,7 @@ export default function BuyerDashboard() {
           ) : (
             savedProperties.map(property => (
               <div key={property.id} className="bg-white rounded-xl shadow border overflow-hidden flex flex-col">
-                <img src={property.imageUrl} alt={property.title} className="h-48 object-cover w-full" />
+                <img src={property.imageUrl || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'} alt={property.title} className="h-48 object-cover w-full" />
                 <div className="p-4 flex-1 flex flex-col">
                   <h3 className="font-bold text-lg text-gray-900 mb-1 truncate">{property.title}</h3>
                   <p className="text-sm text-gray-500 mb-3">{property.address}</p>
@@ -98,12 +104,12 @@ export default function BuyerDashboard() {
                   <div>
                     <h3 className="font-bold text-lg text-gray-900">
                       <Link to={`/property/${inquiry.propertyId}`} className="hover:text-blue-600 underline decoration-blue-300">
-                        {inquiry.propertyTitle}
+                        {inquiry.property?.title || 'Unknown Property'}
                       </Link>
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">Sent to: {inquiry.agentName} • {inquiry.date}</p>
+                    <p className="text-sm text-gray-600 mt-1">Sent to: {inquiry.property?.agent?.fullName || 'Agent'} • {new Date(inquiry.createdAt).toLocaleDateString()}</p>
                   </div>
-                  {inquiry.isPrivacyActive && (
+                  {inquiry.buyerEmailHidden && (
                     <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-green-200">
                       🛡️ Contact Info Hidden
                     </span>

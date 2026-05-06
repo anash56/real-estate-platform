@@ -18,7 +18,7 @@ const router = express.Router();
 
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName } = req.body as SignupRequest;
+    const { email, password, fullName, role } = req.body;
 
     // ✓ Validation
     if (!email || !password || !fullName) {
@@ -71,7 +71,7 @@ router.post('/signup', async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         fullName,
-        role: 'BUYER' // Default role
+        role: role || 'BUYER' // Use frontend provided role or default
       }
     });
 
