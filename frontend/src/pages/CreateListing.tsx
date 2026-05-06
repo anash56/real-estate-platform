@@ -1,0 +1,230 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function CreateListing() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Step 1: Property Details State
+  const [propertyDetails, setPropertyDetails] = useState({
+    title: '',
+    description: '',
+    price: '',
+    propertyType: 'APARTMENT',
+    address: '',
+    city: '',
+  });
+
+  // Step 2: Document State (Mocked for UI)
+  const [documents, setDocuments] = useState<{ type: string; name: string }[]>([]);
+  const [docType, setDocType] = useState('TITLE_DEED');
+
+  // Step 3: Defect Disclosure State
+  const [disclosures, setDisclosures] = useState({
+    hasStructuralIssues: false,
+    structuralIssuesDetails: '',
+    hasLegalDisputes: false,
+    legalDisputesDetails: '',
+    agentSignedOff: false,
+  });
+
+  const handleAddDocument = () => {
+    setDocuments([...documents, { type: docType, name: `mock_document_${Date.now()}.pdf` }]);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disclosures.agentSignedOff) {
+      alert('You must sign off on the defect disclosures to proceed.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    // Mock API Submit
+    setTimeout(() => {
+      alert('Listing created successfully! It is now pending admin moderation.');
+      setIsSubmitting(false);
+      navigate('/dashboard/agent');
+    }, 1500);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 mt-8 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Create New Listing</h1>
+        <p className="text-gray-600">Complete all steps to list your property securely.</p>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="flex items-center mb-8">
+        <div className={`flex-1 h-2 rounded-l ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`flex-1 h-2 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`flex-1 h-2 rounded-r ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+      </div>
+      <div className="flex justify-between text-sm font-bold text-gray-500 mb-8">
+        <span className={step >= 1 ? 'text-blue-600' : ''}>1. Basic Details</span>
+        <span className={step >= 2 ? 'text-blue-600' : ''}>2. Legal Documents</span>
+        <span className={step >= 3 ? 'text-blue-600' : ''}>3. Disclosures</span>
+      </div>
+
+      <div className="bg-white p-8 rounded-xl shadow border border-gray-100">
+        {/* STEP 1: Basic Details */}
+        {step === 1 && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold border-b pb-2">Property Details</h2>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Listing Title</label>
+              <input 
+                type="text" 
+                className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                placeholder="e.g. Modern 3BHK in Downtown"
+                value={propertyDetails.title}
+                onChange={e => setPropertyDetails({...propertyDetails, title: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                <input 
+                  type="number" 
+                  className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={propertyDetails.price}
+                  onChange={e => setPropertyDetails({...propertyDetails, price: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
+                <select 
+                  className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  value={propertyDetails.propertyType}
+                  onChange={e => setPropertyDetails({...propertyDetails, propertyType: e.target.value})}
+                >
+                  <option value="APARTMENT">Apartment</option>
+                  <option value="VILLA">Villa</option>
+                  <option value="COMMERCIAL">Commercial</option>
+                </select>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setStep(2)}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition mt-4"
+            >
+              Next Step: Upload Documents ➔
+            </button>
+          </div>
+        )}
+
+        {/* STEP 2: Document Uploads */}
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded text-blue-800 border border-blue-200">
+              <strong>🛡️ Verification Required:</strong> You must upload legal documents (like a Title Deed) before this property goes live. Our admins will verify them.
+            </div>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50">
+              <div className="flex flex-col items-center gap-4">
+                <select 
+                  className="border p-2 rounded w-64 bg-white"
+                  value={docType}
+                  onChange={e => setDocType(e.target.value)}
+                >
+                  <option value="TITLE_DEED">Title Deed</option>
+                  <option value="TAX_RECEIPT">Tax Receipt</option>
+                  <option value="NOC">NOC</option>
+                </select>
+                <button onClick={handleAddDocument} className="bg-gray-200 text-gray-800 px-6 py-2 rounded font-semibold hover:bg-gray-300">
+                  + Select & Upload File (Mock)
+                </button>
+              </div>
+            </div>
+
+            {documents.length > 0 && (
+              <ul className="space-y-2 mt-4">
+                {documents.map((doc, idx) => (
+                  <li key={idx} className="bg-green-50 text-green-800 p-3 rounded flex justify-between border border-green-200">
+                    <span>📄 {doc.type}</span>
+                    <span className="text-sm">{doc.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex gap-4 pt-4">
+              <button onClick={() => setStep(1)} className="bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded hover:bg-gray-300 transition">
+                ⬅ Back
+              </button>
+              <button onClick={() => setStep(3)} className="flex-1 bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">
+                Next Step: Disclosures ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Defect Disclosures */}
+        {step === 3 && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-orange-50 p-4 rounded text-orange-800 border border-orange-200">
+              <strong>⚠️ Mandatory Disclosure:</strong> Hiding known defects violates platform terms and can lead to a permanent ban.
+            </div>
+
+            {/* Structural Issues */}
+            <div className="border p-4 rounded">
+              <label className="flex items-center gap-2 font-bold mb-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-5 h-5 text-orange-600"
+                  checked={disclosures.hasStructuralIssues}
+                  onChange={e => setDisclosures({...disclosures, hasStructuralIssues: e.target.checked})}
+                />
+                Are there any known structural issues?
+              </label>
+              {disclosures.hasStructuralIssues && (
+                <textarea 
+                  className="w-full border p-2 rounded mt-2 text-sm outline-none focus:ring-1 focus:ring-orange-500" 
+                  placeholder="Please describe the structural issues..."
+                  value={disclosures.structuralIssuesDetails}
+                  onChange={e => setDisclosures({...disclosures, structuralIssuesDetails: e.target.value})}
+                  required
+                />
+              )}
+            </div>
+
+            {/* Agent Sign-off */}
+            <div className="bg-gray-50 border p-4 rounded mt-6">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-6 h-6 mt-1"
+                  checked={disclosures.agentSignedOff}
+                  onChange={e => setDisclosures({...disclosures, agentSignedOff: e.target.checked})}
+                  required
+                />
+                <span className="text-sm text-gray-700">
+                  <strong>Agent Legal Sign-off:</strong> I confirm that the information provided is accurate to the best of my knowledge. I understand that fraudulent listings will be removed.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex gap-4 pt-4 border-t mt-8">
+              <button type="button" onClick={() => setStep(2)} className="bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded hover:bg-gray-300 transition">
+                ⬅ Back
+              </button>
+              <button 
+                type="submit" 
+                disabled={!disclosures.agentSignedOff || isSubmitting}
+                className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Submitting to Moderation Queue...' : 'Submit Listing for Review ✅'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
