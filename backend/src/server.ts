@@ -7,6 +7,11 @@ import { prisma } from './utils/prisma';
 
 // ← ADD THIS
 import authRoutes from './routes/auth';
+import propertyRoutes from './routes/property';
+import defectRoutes from './routes/defect';
+import documentRoutes from './routes/document';
+import inquiryRoutes from './routes/inquiry';
+import moderationRoutes from './routes/moderation';
 
 dotenv.config();
 
@@ -40,6 +45,11 @@ app.get('/api/health', async (req, res) => {
 // ← ADD THIS LINE
 // Mount auth routes
 app.use('/api/auth', authRoutes);
+app.use('/api/properties', propertyRoutes);
+app.use('/api/defects', defectRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/moderation', moderationRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -61,6 +71,11 @@ app.listen(PORT, () => {
 ║  API Base: http://localhost:${PORT}/api        
 ║  Health Check: http://localhost:${PORT}/api/health
 ║  Auth Routes: http://localhost:${PORT}/api/auth
+║  Property Routes: http://localhost:${PORT}/api/properties
+║  Defect Routes: http://localhost:${PORT}/api/defects
+║  Document Routes: http://localhost:${PORT}/api/documents
+║  Inquiry Routes: http://localhost:${PORT}/api/inquiries
+║  Moderation Routes: http://localhost:${PORT}/api/moderation
 ╚════════════════════════════════════════╝
   `);
 });

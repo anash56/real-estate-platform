@@ -57,6 +57,11 @@ model Property {
   status            String   @default("DRAFT")
   moderationStatus  String   @default("PENDING_REVIEW")
   
+  riskScore         Int                 @default(0)
+  flaggedReasons    String[]
+  defectDisclosure  DefectDisclosure?
+  legalDocuments    LegalDocument[]
+
   images            PropertyImage[]
   inquiries         Inquiry[]
   reviews           Review[]
@@ -148,4 +153,40 @@ model UserAgreement {
   createdAt         DateTime @default(now())
   
   @@index([userId])
+}
+
+model DefectDisclosure {
+  id                          String   @id @default(cuid())
+  propertyId                  String   @unique
+  property                    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  hasStructuralIssues         Boolean
+  structuralIssuesDetails     String?
+
+  hasLegalDisputes            Boolean
+  legalDisputesDetails        String?
+
+  hasPreviousDamage           Boolean
+  previousDamageDetails       String?
+
+  hasEnvironmentalHazards     Boolean
+  environmentalHazardsDetails String?
+
+  agentSignedOff              Boolean  @default(false)
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model LegalDocument {
+  id           String   @id @default(cuid())
+  propertyId   String
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  documentType String
+  documentUrl  String
+  isVerified   Boolean  @default(false)
+  uploadedAt   DateTime @default(now())
+
+  @@index([propertyId])
 }
