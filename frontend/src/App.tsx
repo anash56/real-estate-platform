@@ -5,10 +5,12 @@ import BuyerDashboard from './pages/BuyerDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 import CreateListing from './pages/CreateListing';
 import Login from './pages/Login';
+import Navbar from './components/Navbar';
 
 function App() {
   return (
     <BrowserRouter>
+      <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/property/:id" element={<PropertyDetails />} />
