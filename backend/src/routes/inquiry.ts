@@ -114,4 +114,73 @@ router.get('/sent', auth, async (req: Request, res: Response) => {
   }
 });
 
+// ============================================
+// ROUTE: PUT /api/inquiries/:id/respond
+// ============================================
+// For Agents: Respond to a buyer's inquiry
+
+router.put('/:id/respond', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { response } = req.body;
+
+    // Verify the inquiry exists and the property belongs to the agent
+    const inquiry = await prisma.inquiry.findUnique({
+      where: { id: id as string },
+      include: { property: true }
+    });
+
+    if (!inquiry || inquiry.property.agentId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to respond to this inquiry' });
+    }
+
+    const updatedInquiry = await prisma.inquiry.update({
+      where: { id: id as string },
+      data: {
+        agentResponse: response,
+        respondedAt: new Date(),
+        status: 'RESPONDED' // Update status
+      }
+    });
+
+    res.json({ success: true, message: 'Response sent successfully', data: { ...updatedInquiry, budget: updatedInquiry.budget?.toString() } });
+  } catch (error) {
+    console.error('❌ Respond to inquiry error:', error);
+    res.status(500).json({ success: false, error: 'Failed to send response' });
+  }
+});
+
+// ============================================
+// ROUTE: PUT /api/inquiries/:id/reveal
+// ============================================
+// For Buyers: Reveal their contact info to the agent
+
+router.put('/:id/reveal', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Verify the inquiry exists and belongs to the buyer
+    const inquiry = await prisma.inquiry.findUnique({
+      where: { id: id as string }
+    });
+
+    if (!inquiry || inquiry.buyerId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to modify this inquiry' });
+    }
+
+    const updatedInquiry = await prisma.inquiry.update({
+      where: { id: id as string },
+      data: {
+        buyerEmailHidden: false,
+        buyerPhoneHidden: false
+      }
+    });
+
+    res.json({ success: true, message: 'Contact info revealed to agent', data: { ...updatedInquiry, budget: updatedInquiry.budget?.toString() } });
+  } catch (error) {
+    console.error('❌ Reveal contact info error:', error);
+    res.status(500).json({ success: false, error: 'Failed to reveal contact info' });
+  }
+});
+
 export default router;

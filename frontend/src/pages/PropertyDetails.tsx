@@ -9,6 +9,7 @@ export default function PropertyDetails() {
 
   const [inquiryText, setInquiryText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -26,7 +27,27 @@ export default function PropertyDetails() {
         setIsLoading(false);
       }
     };
+
+    const fetchFavoriteStatus = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return; // User isn't logged in, so skip checking favorites
+      
+      try {
+        const res = await fetch(`http://localhost:5000/api/properties/favorites`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const isFav = data.data.some((fav: any) => fav.id === id);
+          setIsFavorite(isFav);
+        }
+      } catch (err) {
+        console.error('Failed to fetch favorite status');
+      }
+    };
+
     fetchProperty();
+    fetchFavoriteStatus();
   }, [id]);
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
@@ -60,6 +81,29 @@ export default function PropertyDetails() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to save properties.');
+      return;
+    }
+    try {
+      const method = isFavorite ? 'DELETE' : 'POST';
+      const res = await fetch(`http://localhost:5000/api/properties/${id}/favorite`, {
+        method,
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsFavorite(!isFavorite);
+      } else {
+        alert(data.error || 'Failed to update favorites');
+      }
+    } catch (err) {
+      alert('Network error while updating favorites');
+    }
+  };
+
   if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading property details...</div>;
   if (error || !property) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-red-600">{error || 'Property not found'}</div>;
 
@@ -74,8 +118,14 @@ export default function PropertyDetails() {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">{property.title}</h1>
           <p className="text-lg text-gray-600">{property.address}, {property.city}</p>
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-2">
           <p className="text-3xl font-extrabold text-blue-600">₹ {property.price}</p>
+          <button 
+            onClick={handleToggleFavorite}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold border transition-colors ${isFavorite ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+          >
+            {isFavorite ? '❤️ Saved' : '🤍 Save Property'}
+          </button>
         </div>
       </div>
 

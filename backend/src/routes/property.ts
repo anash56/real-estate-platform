@@ -198,4 +198,94 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// ============================================
+// ROUTE 6: POST /api/properties/:id/favorite
+// ============================================
+// Add property to favorites
+
+router.post('/:id/favorite', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.favorite.create({
+      data: {
+        userId: req.userId as string,
+        propertyId: id as string
+      }
+    });
+    res.json({ success: true, message: 'Property added to favorites' });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, error: 'Property already in favorites' });
+    }
+    console.error('❌ Add favorite error:', error);
+    res.status(500).json({ success: false, error: 'Failed to add favorite' });
+  }
+});
+
+// ============================================
+// ROUTE 7: DELETE /api/properties/:id/favorite
+// ============================================
+// Remove property from favorites
+
+router.delete('/:id/favorite', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.favorite.delete({
+      where: {
+        userId_propertyId: {
+          userId: req.userId as string,
+          propertyId: id as string
+        }
+      }
+    });
+    res.json({ success: true, message: 'Property removed from favorites' });
+  } catch (error) {
+    console.error('❌ Remove favorite error:', error);
+    res.status(500).json({ success: false, error: 'Failed to remove favorite' });
+  }
+});
+
+// ============================================
+// ROUTE 8: PUT /api/properties/:id
+// ============================================
+// Update an existing property listing
+
+router.put('/:id', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, propertyType, price, address, city } = req.body;
+
+    // 1. Verify property exists and belongs to the agent
+    const property = await prisma.property.findUnique({
+      where: { id: id as string }
+    });
+
+    if (!property) {
+      return res.status(404).json({ success: false, error: 'Property not found' });
+    }
+
+    if (property.agentId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to edit this property' });
+    }
+
+    // 2. Update property
+    const updatedProperty = await prisma.property.update({
+      where: { id: id as string },
+      data: {
+        title,
+        description,
+        propertyType,
+        price: price ? BigInt(price) : property.price,
+        address,
+        city
+      }
+    });
+
+    res.json({ success: true, message: 'Property updated successfully', data: { ...updatedProperty, price: updatedProperty.price.toString() } });
+  } catch (error) {
+    console.error('❌ Property update error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update property' });
+  }
+});
+
 export default router;

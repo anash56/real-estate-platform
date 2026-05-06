@@ -104,6 +104,8 @@ model Inquiry {
   buyerPhoneHidden  Boolean  @default(true)
   
   createdAt         DateTime @default(now())
+  agentResponse     String?  @db.Text
+  respondedAt       DateTime?
   
   @@index([propertyId])
   @@index([buyerId])

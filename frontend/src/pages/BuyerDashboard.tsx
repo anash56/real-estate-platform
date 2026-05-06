@@ -42,6 +42,27 @@ export default function BuyerDashboard() {
     fetchBuyerData();
   }, [navigate]);
 
+  const handleRevealContactInfo = async (inquiryId: string) => {
+    if (!window.confirm('Are you sure you want to reveal your email and phone number to this agent?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/inquiries/${inquiryId}/reveal`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setInquiries(inquiries.map(inq => inq.id === inquiryId ? { ...inq, buyerEmailHidden: false, buyerPhoneHidden: false } : inq));
+      } else {
+        alert(data.error || 'Failed to reveal contact info');
+      }
+    } catch (error) {
+      alert('Network error while revealing contact info');
+    }
+  };
+
   if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading your dashboard...</div>;
 
   return (
@@ -109,15 +130,34 @@ export default function BuyerDashboard() {
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">Sent to: {inquiry.property?.agent?.fullName || 'Agent'} • {new Date(inquiry.createdAt).toLocaleDateString()}</p>
                   </div>
-                  {inquiry.buyerEmailHidden && (
-                    <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-green-200">
-                      🛡️ Contact Info Hidden
+                  {inquiry.buyerEmailHidden ? (
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-green-200">
+                        🛡️ Contact Info Hidden
+                      </span>
+                      <button 
+                        onClick={() => handleRevealContactInfo(inquiry.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline font-semibold transition"
+                      >
+                        Reveal my contact info
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 border border-blue-200">
+                      ✅ Contact Info Revealed
                     </span>
                   )}
                 </div>
                 <p className="text-gray-800 bg-gray-50 p-4 rounded-lg italic border border-gray-100">
                   "{inquiry.message}"
                 </p>
+                {inquiry.agentResponse && (
+                  <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <p className="text-sm font-bold text-blue-800 mb-1">Agent's Response:</p>
+                    <p className="text-gray-700">{inquiry.agentResponse}</p>
+                    {inquiry.respondedAt && <p className="text-xs text-gray-500 mt-2">{new Date(inquiry.respondedAt).toLocaleDateString()}</p>}
+                  </div>
+                )}
               </div>
             ))
           )}
