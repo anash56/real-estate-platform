@@ -88,7 +88,12 @@ export default function BuyerDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 mt-8 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">My Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
+        <Link to="/profile" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-bold transition border">
+          ⚙️ Profile Settings
+        </Link>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200 mb-8 text-lg font-medium">

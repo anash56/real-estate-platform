@@ -121,11 +121,11 @@ router.put('/documents/:id/verify', auth, async (req: Request, res: Response) =>
     if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
 
     const { id } = req.params;
-    const document = await prisma.legalDocument.findUnique({ where: { id } });
+    const document = await prisma.legalDocument.findUnique({ where: { id: id as string } });
     if (!document) return res.status(404).json({ success: false, error: 'Document not found' });
 
     const updatedDoc = await prisma.legalDocument.update({
-      where: { id },
+      where: { id: id as string },
       data: { isVerified: !document.isVerified }
     });
 

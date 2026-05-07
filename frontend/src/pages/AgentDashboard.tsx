@@ -84,9 +84,14 @@ export default function AgentDashboard() {
     <div className="max-w-6xl mx-auto p-6 mt-8 min-h-screen">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Agent Dashboard</h1>
-        <Link to="/listings/new" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow transition">
-          + Create New Listing
-        </Link>
+        <div className="flex gap-4">
+          <Link to="/profile" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-bold transition border">
+            ⚙️ Profile Settings
+          </Link>
+          <Link to="/listings/new" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow transition">
+            + Create New Listing
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}

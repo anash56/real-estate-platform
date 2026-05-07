@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import EditListing from './pages/EditListing';
 import ModerationDashboard from './pages/ModerationDashboard';
 import LiveChat from './pages/LiveChat';
+import ProfileSettings from './pages/ProfileSettings';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/listings/new" element={<CreateListing />} />
         <Route path="/listings/edit/:id" element={<EditListing />} />
         <Route path="/chat/:inquiryId" element={<LiveChat />} />
+        <Route path="/profile" element={<ProfileSettings />} />
       </Routes>
     </BrowserRouter>
   );

@@ -6,6 +6,23 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prisma';
 import auth from '../middleware/auth';
 import { SignupRequest, LoginRequest, AuthResponse } from '../utils/types';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Configure Multer for local avatar uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/avatars');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -244,6 +261,48 @@ router.post('/logout', auth, (req: Request, res: Response) => {
     success: true,
     message: 'Logged out successfully'
   });
+});
+
+// ============================================
+// ROUTE 5: PUT /api/auth/profile
+// ============================================
+// Update user profile (name, phone)
+
+router.put('/profile', auth, async (req: Request, res: Response) => {
+  try {
+    const { fullName, phone } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { fullName, phone }
+    });
+    res.json({ success: true, message: 'Profile updated successfully', data: user });
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
+});
+
+// ============================================
+// ROUTE 6: POST /api/auth/profile/avatar
+// ============================================
+// Upload and update profile photo
+
+router.post('/profile/avatar', auth, upload.single('avatar'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No image uploaded' });
+    }
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const user = await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { profilePhoto: avatarUrl },
+      select: { profilePhoto: true }
+    });
+    res.json({ success: true, message: 'Avatar updated', data: user });
+  } catch (error) {
+    console.error('❌ Avatar upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload avatar' });
+  }
 });
 
 export default router;
