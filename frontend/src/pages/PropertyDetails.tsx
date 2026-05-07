@@ -15,6 +15,7 @@ export default function PropertyDetails() {
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewDescription, setReviewDescription] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -23,6 +24,9 @@ export default function PropertyDetails() {
         const data = await res.json();
         if (data.success) {
           setProperty(data.data);
+          if (data.data.images && data.data.images.length > 0) {
+            setActiveImage(data.data.images[0].imageUrl);
+          }
         } else {
           setError(data.error || 'Failed to load property');
         }
@@ -187,10 +191,27 @@ export default function PropertyDetails() {
         
         {/* Left Column: Details & Disclosures */}
         <div className="md:col-span-2 space-y-8">
-          {/* Image Placeholder */}
-          <div className="w-full h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">
-            [Property Image Gallery Placeholder]
-          </div>
+          {/* Image Gallery */}
+          {property.images && property.images.length > 0 ? (
+            <div className="space-y-4">
+              <div className="w-full h-[400px] rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                <img src={`http://localhost:5000${activeImage || property.images[0].imageUrl}`} alt="Main property" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                {property.images.map((img: any) => (
+                  <button 
+                    key={img.id} 
+                    onClick={() => setActiveImage(img.imageUrl)}
+                    className={`flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 transition-all ${activeImage === img.imageUrl ? 'border-blue-600 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                  >
+                    <img src={`http://localhost:5000${img.imageUrl}`} alt="Thumbnail" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">No images available</div>
+          )}
 
           {/* Basic Details */}
           <div className="flex gap-8 py-4 border-y border-gray-200">

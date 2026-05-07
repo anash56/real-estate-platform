@@ -2,8 +2,25 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import auth from '../middleware/auth';
 import { evaluatePropertyRisk } from '../utils/moderation';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configure Multer for local image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
 // ============================================
 // ROUTE 1: POST /api/properties
@@ -106,7 +123,8 @@ router.get('/', async (req: Request, res: Response) => {
       where: whereClause,
       include: {
         legalDocuments: true,
-        defectDisclosure: true
+        defectDisclosure: true,
+        images: true
       },
       orderBy: { createdAt: 'desc' },
       take: 9 // Limit to 9 recent properties for the home page grid
@@ -130,6 +148,7 @@ router.get('/agent', auth, async (req: Request, res: Response) => {
   try {
     const properties = await prisma.property.findMany({
       where: { agentId: req.userId as string },
+      include: { images: true },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -152,7 +171,7 @@ router.get('/favorites', auth, async (req: Request, res: Response) => {
   try {
     const favorites = await prisma.favorite.findMany({
       where: { userId: req.userId as string },
-      include: { property: true },
+      include: { property: { include: { images: true } } },
       orderBy: { addedAt: 'desc' }
     });
 
@@ -183,6 +202,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         agent: { select: { fullName: true, email: true, phone: true } },
         defectDisclosure: true,
         legalDocuments: true,
+        images: { orderBy: { order: 'asc' } },
         reviews: {
           where: { isApproved: true },
           include: { reviewer: { select: { fullName: true } } },
@@ -326,6 +346,41 @@ router.put('/:id', auth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Property update error:', error);
     res.status(500).json({ success: false, error: 'Failed to update property' });
+  }
+});
+
+// ============================================
+// ROUTE 10: POST /api/properties/:id/images
+// ============================================
+// Upload multiple images for a property
+
+router.post('/:id/images', auth, upload.array('images', 10), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const files = (req as any).files;
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No images uploaded' });
+    }
+
+    const property = await prisma.property.findUnique({ where: { id: id as string } });
+    if (!property || property.agentId !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to modify this property' });
+    }
+
+    const imageRecords = files.map((file: any, index: number) => ({
+      propertyId: id as string,
+      imageUrl: `/uploads/${file.filename}`,
+      order: index,
+      isMainImage: index === 0 // Make the first uploaded image the main one
+    }));
+
+    await prisma.propertyImage.createMany({ data: imageRecords });
+
+    res.status(201).json({ success: true, message: 'Images uploaded successfully' });
+  } catch (error) {
+    console.error('❌ Image upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload images' });
   }
 });
 

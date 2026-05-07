@@ -15,6 +15,7 @@ export default function CreateListing() {
     address: '',
     city: '',
   });
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   // Step 2: Document State (Mocked for UI)
   const [documents, setDocuments] = useState<{ type: string; name: string }[]>([]);
@@ -75,7 +76,18 @@ export default function CreateListing() {
       
       const propertyId = propData.data.property.id;
 
-      // 2. Upload Legal Documents (Mocking the URLs for now)
+      // 2. Upload Images
+      if (imageFiles.length > 0) {
+        const formData = new FormData();
+        imageFiles.forEach(file => formData.append('images', file));
+        await fetch(`http://localhost:5000/api/properties/${propertyId}/images`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }, // Note: Browser automatically sets Content-Type boundary
+          body: formData
+        });
+      }
+
+      // 3. Upload Legal Documents (Mocking the URLs for now)
       for (const doc of documents) {
         await fetch(`http://localhost:5000/api/documents/${propertyId}`, {
           method: 'POST',
@@ -84,7 +96,7 @@ export default function CreateListing() {
         });
       }
 
-      // 3. Submit Defect Disclosure
+      // 4. Submit Defect Disclosure
       await fetch(`http://localhost:5000/api/defects/${propertyId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -159,6 +171,18 @@ export default function CreateListing() {
                   <option value="COMMERCIAL">Commercial</option>
                 </select>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Property Images</label>
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*"
+                onChange={e => setImageFiles(Array.from(e.target.files || []))}
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">Upload up to 10 images. The first image will be the cover photo.</p>
             </div>
 
             <button 

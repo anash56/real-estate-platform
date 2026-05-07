@@ -102,6 +102,30 @@ export default function ModerationDashboard() {
     }
   };
 
+  const handleVerifyDocument = async (propertyId: string, documentId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/moderation/documents/${documentId}/verify`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQueue(queue.map(p => {
+          if (p.id === propertyId) {
+            return {
+              ...p,
+              legalDocuments: p.legalDocuments.map((d: any) => d.id === documentId ? { ...d, isVerified: !d.isVerified } : d)
+            };
+          }
+          return p;
+        }));
+      } else alert(data.error);
+    } catch (err) {
+      alert('Error verifying document');
+    }
+  };
+
   const handleToggleReviewStatus = async (reviewId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -193,8 +217,25 @@ export default function ModerationDashboard() {
                   </div>
                   <div className="bg-gray-50 p-3 rounded border">
                     <h4 className="font-semibold text-gray-700 mb-2">Documents & Disclosures:</h4>
-                    <p>Documents Uploaded: <span className="font-bold">{property.legalDocuments?.length || 0}</span></p>
-                    <p>Agent Signed Off: {property.defectDisclosure?.agentSignedOff ? '✅ Yes' : '❌ No'}</p>
+                    <p className="mb-3">Agent Signed Off: {property.defectDisclosure?.agentSignedOff ? '✅ Yes' : '❌ No'}</p>
+                    
+                    <div className="mt-2">
+                      {property.legalDocuments && property.legalDocuments.length > 0 ? (
+                        <ul className="space-y-2">
+                          {property.legalDocuments.map((doc: any) => (
+                            <li key={doc.id} className="flex justify-between items-center bg-white p-2 rounded border text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{doc.documentType}</span>
+                                <a href={doc.documentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">(View)</a>
+                              </div>
+                              <button onClick={() => handleVerifyDocument(property.id, doc.id)} className={`px-2 py-1 rounded transition-colors ${doc.isVerified ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                                {doc.isVerified ? '✅ Verified' : 'Verify'}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="text-red-500 text-xs">No documents uploaded.</p>}
+                    </div>
                   </div>
                 </div>
 

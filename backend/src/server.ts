@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { prisma } from './utils/prisma';
+import path from 'path';
 
 // ← ADD THIS
 import authRoutes from './routes/auth';
@@ -27,6 +28,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Socket.io setup
 const io = new Server(httpServer, {

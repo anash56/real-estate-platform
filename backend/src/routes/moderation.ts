@@ -111,6 +111,32 @@ router.post('/:propertyId/reject', auth, async (req: Request, res: Response) => 
 });
 
 // ============================================
+// ROUTE: PUT /api/moderation/documents/:id/verify
+// ============================================
+// Toggle verification status of a legal document
+
+router.put('/documents/:id/verify', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+    const { id } = req.params;
+    const document = await prisma.legalDocument.findUnique({ where: { id } });
+    if (!document) return res.status(404).json({ success: false, error: 'Document not found' });
+
+    const updatedDoc = await prisma.legalDocument.update({
+      where: { id },
+      data: { isVerified: !document.isVerified }
+    });
+
+    res.json({ success: true, message: 'Document verification updated', data: updatedDoc });
+  } catch (error) {
+    console.error('❌ Verify document error:', error);
+    res.status(500).json({ success: false, error: 'Failed to verify document' });
+  }
+});
+
+// ============================================
 // ROUTE: GET /api/moderation/reviews
 // ============================================
 // Fetch all reviews for moderation

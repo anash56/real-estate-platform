@@ -109,34 +109,37 @@ export default function AgentDashboard() {
       {activeTab === 'listings' && (
         <div className="space-y-6">
           {listings.length === 0 && <p className="text-gray-500">You haven't listed any properties yet.</p>}
-          {listings.map(property => (
-            <div key={property.id} className="bg-white rounded-xl shadow border overflow-hidden flex flex-col md:flex-row">
-              <img src={property.imageUrl || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'} alt={property.title} className="h-48 md:w-64 object-cover" />
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-xl text-gray-900">{property.title}</h3>
-                  {getStatusBadge(property)}
-                </div>
-                <p className="text-2xl font-extrabold text-blue-600 mb-4">₹{property.price}</p>
-                
-                {property.moderationStatus === 'REJECTED' && property.flaggedReasons && property.flaggedReasons.length > 0 && (
-                  <div className="bg-red-50 text-red-700 p-3 rounded text-sm mb-4 border border-red-100">
-                    <strong>Rejection Reason:</strong> {property.flaggedReasons[0]}
+          {listings.map(property => {
+            const imgUrl = property.images && property.images.length > 0 ? `http://localhost:5000${property.images[0].imageUrl}` : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80';
+            return (
+              <div key={property.id} className="bg-white rounded-xl shadow border overflow-hidden flex flex-col md:flex-row">
+                <img src={imgUrl} alt={property.title} className="h-48 md:w-64 object-cover" />
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-xl text-gray-900">{property.title}</h3>
+                    {getStatusBadge(property)}
                   </div>
-                )}
+                  <p className="text-2xl font-extrabold text-blue-600 mb-4">₹{property.price}</p>
+                  
+                  {property.moderationStatus === 'REJECTED' && property.flaggedReasons && property.flaggedReasons.length > 0 && (
+                    <div className="bg-red-50 text-red-700 p-3 rounded text-sm mb-4 border border-red-100">
+                      <strong>Rejection Reason:</strong> {property.flaggedReasons[0]}
+                    </div>
+                  )}
 
-                <div className="flex justify-between items-end mt-auto pt-4 border-t border-gray-100">
-                  <p className="text-gray-500 text-sm">👁️ 0 views</p>
-                  <div className="flex gap-2">
-                    <Link to={`/listings/edit/${property.id}`} className="px-4 py-2 border border-gray-300 rounded font-semibold hover:bg-gray-50 transition block text-center">Edit</Link>
-                    {property.status === 'ACTIVE' && (
-                      <Link to={`/property/${property.id}`} className="px-4 py-2 bg-blue-50 text-blue-700 rounded font-semibold hover:bg-blue-100 transition">View Live</Link>
-                    )}
+                  <div className="flex justify-between items-end mt-auto pt-4 border-t border-gray-100">
+                    <p className="text-gray-500 text-sm">👁️ 0 views</p>
+                    <div className="flex gap-2">
+                      <Link to={`/listings/edit/${property.id}`} className="px-4 py-2 border border-gray-300 rounded font-semibold hover:bg-gray-50 transition block text-center">Edit</Link>
+                      {property.status === 'ACTIVE' && (
+                        <Link to={`/property/${property.id}`} className="px-4 py-2 bg-blue-50 text-blue-700 rounded font-semibold hover:bg-blue-100 transition">View Live</Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

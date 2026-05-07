@@ -112,27 +112,30 @@ export default function BuyerDashboard() {
           {savedProperties.length === 0 ? (
             <p className="text-gray-500 col-span-full">You haven't saved any properties yet.</p>
           ) : (
-            savedProperties.map(property => (
-              <div key={property.id} className="bg-white rounded-xl shadow border overflow-hidden flex flex-col">
-                <img src={property.imageUrl || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'} alt={property.title} className="h-48 object-cover w-full" />
-                <div className="p-4 flex-1 flex flex-col">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1 truncate">{property.title}</h3>
-                  <p className="text-sm text-gray-500 mb-3">{property.address}</p>
-                  <p className="text-xl font-extrabold text-blue-600 mt-auto mb-4">₹{property.price}</p>
-                  <div className="flex gap-2 mt-auto">
-                    <Link to={`/property/${property.id}`} className="flex-1 bg-gray-100 text-center py-2 rounded font-semibold hover:bg-gray-200 transition">
-                      View Details
-                    </Link>
-                    <button 
-                      onClick={() => handleRemoveFavorite(property.id)}
-                      className="px-4 border border-red-200 text-red-500 rounded hover:bg-red-50 transition"
-                    >
-                      Remove
-                    </button>
+            savedProperties.map(property => {
+              const imgUrl = property.images && property.images.length > 0 ? `http://localhost:5000${property.images[0].imageUrl}` : 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80';
+              return (
+                <div key={property.id} className="bg-white rounded-xl shadow border overflow-hidden flex flex-col">
+                  <img src={imgUrl} alt={property.title} className="h-48 object-cover w-full" />
+                  <div className="p-4 flex-1 flex flex-col">
+                    <h3 className="font-bold text-lg text-gray-900 mb-1 truncate">{property.title}</h3>
+                    <p className="text-sm text-gray-500 mb-3">{property.address}</p>
+                    <p className="text-xl font-extrabold text-blue-600 mt-auto mb-4">₹{property.price}</p>
+                    <div className="flex gap-2 mt-auto">
+                      <Link to={`/property/${property.id}`} className="flex-1 bg-gray-100 text-center py-2 rounded font-semibold hover:bg-gray-200 transition">
+                        View Details
+                      </Link>
+                      <button 
+                        onClick={() => handleRemoveFavorite(property.id)}
+                        className="px-4 border border-red-200 text-red-500 rounded hover:bg-red-50 transition"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
