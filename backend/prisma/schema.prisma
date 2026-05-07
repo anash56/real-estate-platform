@@ -26,10 +26,12 @@ model User {
   
   properties        Property[] @relation("AgentProperties")
   inquiries         Inquiry[]
+  toursRequested    TourRequest[] @relation("BuyerTours")
   reviews           Review[]
   messages          Message[]
   favorites         Favorite[]
   agreements        UserAgreement[]
+  notifications     Notification[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -69,9 +71,11 @@ model Property {
   flaggedReasons    String[]
   defectDisclosure  DefectDisclosure?
   legalDocuments    LegalDocument[]
+  priceHistory      PriceHistory[]
 
   images            PropertyImage[]
   inquiries         Inquiry[]
+  tourRequests      TourRequest[]
   reviews           Review[]
   favorites         Favorite[]
   
@@ -94,6 +98,20 @@ model PropertyImage {
   uploadedAt        DateTime @default(now())
   
   @@index([propertyId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  message     String   @db.Text
+  type        String   @default("INFO")
+  isRead      Boolean  @default(false)
+  link        String?
+  createdAt   DateTime @default(now())
+  @@index([userId])
 }
 
 model Inquiry {
@@ -214,5 +232,36 @@ model LegalDocument {
   isVerified   Boolean  @default(false)
   uploadedAt   DateTime @default(now())
 
+  @@index([propertyId])
+}
+
+model TourRequest {
+  id          String   @id @default(cuid())
+  
+  buyerId     String
+  buyer       User     @relation("BuyerTours", fields: [buyerId], references: [id])
+  
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  message     String?  @db.Text
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([buyerId])
+  @@index([propertyId])
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  price       BigInt
+  changedAt   DateTime @default(now())
+  
   @@index([propertyId])
 }

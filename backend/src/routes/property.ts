@@ -72,6 +72,9 @@ router.post('/', auth, async (req: Request, res: Response) => {
         latitude,
         longitude,
         price: BigInt(price),
+        priceHistory: {
+          create: { price: BigInt(price) }
+        },
         amenities,
         status: isDraft ? 'DRAFT' : 'ACTIVE',
         moderationStatus: isDraft ? 'PENDING_REVIEW' : moderationResult.status,
@@ -104,7 +107,7 @@ router.post('/', auth, async (req: Request, res: Response) => {
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { search } = req.query;
+    const { search, minPrice, maxPrice, bedrooms, bathrooms, propertyType, amenities } = req.query;
     const whereClause: any = {
       status: 'ACTIVE',
       moderationStatus: 'APPROVED'
@@ -117,6 +120,22 @@ router.get('/', async (req: Request, res: Response) => {
         { address: { contains: search as string, mode: 'insensitive' } },
         { propertyType: { contains: search as string, mode: 'insensitive' } }
       ];
+    }
+
+    if (minPrice || maxPrice) {
+      whereClause.price = {};
+      if (minPrice) whereClause.price.gte = BigInt(minPrice as string);
+      if (maxPrice) whereClause.price.lte = BigInt(maxPrice as string);
+    }
+
+    if (bedrooms) whereClause.bedrooms = { gte: Number(bedrooms) };
+    if (bathrooms) whereClause.bathrooms = { gte: Number(bathrooms) };
+    if (propertyType) whereClause.propertyType = propertyType as string;
+
+    if (amenities) {
+      // "hasEvery" ensures the property has ALL the requested amenities
+      const amenitiesList = (amenities as string).split(',').map(a => a.trim());
+      whereClause.amenities = { hasEvery: amenitiesList };
     }
 
     const properties = await (prisma as any).property.findMany({
@@ -203,6 +222,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         defectDisclosure: true,
         legalDocuments: true,
         images: { orderBy: { order: 'asc' } },
+        priceHistory: { orderBy: { changedAt: 'asc' } },
         reviews: {
           where: { isApproved: true },
           include: { reviewer: { select: { fullName: true } } },
@@ -222,8 +242,14 @@ router.get('/:id', async (req: Request, res: Response) => {
     });
     property.viewCount = (property.viewCount || 0) + 1;
 
+    const formattedProperty = {
+      ...property,
+      price: property.price.toString(),
+      priceHistory: property.priceHistory?.map((ph: any) => ({ ...ph, price: ph.price.toString() }))
+    };
+
     // Safely convert BigInt to string
-    res.json({ success: true, data: { ...property, price: property.price.toString() } });
+    res.json({ success: true, data: formattedProperty });
   } catch (error) {
     console.error('❌ Fetch property error:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch property details' });
@@ -354,7 +380,8 @@ router.put('/:id', auth, async (req: Request, res: Response) => {
           status: 'ACTIVE', // No longer a draft, it's in the queue
           moderationStatus: moderationResult.status,
           riskScore: moderationResult.score,
-          flaggedReasons: moderationResult.reasons
+          flaggedReasons: moderationResult.reasons,
+          ...(price && BigInt(price) !== property.price ? { priceHistory: { create: { price: BigInt(price) } } } : {})
         }
       });
       return res.json({ success: true, message: 'Property submitted for review', data: { ...updatedProperty, price: updatedProperty.price.toString() } });
@@ -371,6 +398,7 @@ router.put('/:id', auth, async (req: Request, res: Response) => {
         city,
         price: price ? BigInt(price) : property.price,
         amenities: amenities || property.amenities,
+        ...(price && BigInt(price) !== property.price ? { priceHistory: { create: { price: BigInt(price) } } } : {})
       }
     });
 
@@ -413,6 +441,39 @@ router.post('/:id/images', auth, upload.array('images', 10), async (req: Request
   } catch (error) {
     console.error('❌ Image upload error:', error);
     res.status(500).json({ success: false, error: 'Failed to upload images' });
+  }
+});
+
+// ============================================
+// ROUTE 11: POST /api/properties/generate-description
+// ============================================
+// Generate AI Property Description
+
+router.post('/generate-description', auth, async (req: Request, res: Response) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required' });
+
+    let generatedText = "";
+    
+    // If you add GEMINI_API_KEY to your backend .env file, it will use real AI!
+    if (process.env.GEMINI_API_KEY) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `Write a professional, engaging, and ethical real estate property description based on these features. Make it 2-3 paragraphs. Features: ${prompt}` }] }] })
+      });
+      const data = await response.json();
+      generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Failed to generate. Please write manually.";
+    } else {
+      // Fallback Mock if no API key is provided
+      generatedText = `Welcome to this stunning property! \n\nKey Highlights:\n${prompt.split(',').map((p: string) => `• ${p.trim()}`).join('\n')}\n\nThis beautiful home offers a perfect blend of comfort and modern living. Built with attention to detail and designed for convenience, it stands as an incredible opportunity to own a piece of prime real estate. Contact us today for a viewing!`;
+    }
+
+    res.json({ success: true, data: generatedText });
+  } catch (error) {
+    console.error('❌ AI Generation error:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate description' });
   }
 });
 

@@ -7,6 +7,10 @@ export default function CreateListing() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+
   // Step 1: Property Details State
   const [propertyDetails, setPropertyDetails] = useState({
     title: '',
@@ -30,6 +34,31 @@ export default function CreateListing() {
     legalDisputesDetails: '',
     agentSignedOff: false,
   });
+
+  const handleGenerateDescription = async () => {
+    if (!aiPrompt) return alert('Please enter some bullet points for the AI.');
+    setIsGeneratingAi(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/properties/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ prompt: aiPrompt })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPropertyDetails({ ...propertyDetails, description: data.data });
+        setShowAiAssistant(false);
+        setAiPrompt('');
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      alert('Error generating description');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
 
   const handleAddDocument = () => {
     setDocuments([...documents, { type: docType, name: `mock_document_${Date.now()}.pdf` }]);
@@ -231,6 +260,49 @@ export default function CreateListing() {
                   <option value="COMMERCIAL">Commercial</option>
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input 
+                  type="text" 
+                  className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={propertyDetails.city}
+                  onChange={e => setPropertyDetails({...propertyDetails, city: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
+                <input 
+                  type="text" 
+                  className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={propertyDetails.address}
+                  onChange={e => setPropertyDetails({...propertyDetails, address: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-700">Property Description</label>
+                <button type="button" onClick={() => setShowAiAssistant(!showAiAssistant)} className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded-full font-bold flex items-center gap-1 transition">
+                  ✨ Write with AI
+                </button>
+              </div>
+              
+              {showAiAssistant && (
+                <div className="mb-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <label className="block text-xs font-bold text-purple-800 mb-2">AI Listing Assistant</label>
+                  <textarea className="w-full border border-purple-300 p-2 rounded text-sm outline-none focus:ring-2 focus:ring-purple-500 bg-white" rows={2} placeholder="e.g., 3 bed, 2 bath, sea facing, newly renovated kitchen, close to metro..." value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}></textarea>
+                  <div className="flex justify-end mt-2">
+                    <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingAi} className="bg-purple-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-purple-700 transition disabled:opacity-50">
+                      {isGeneratingAi ? 'Generating Magic...' : 'Generate Description'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <textarea className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none h-32" value={propertyDetails.description} onChange={e => setPropertyDetails({...propertyDetails, description: e.target.value})} required></textarea>
             </div>
 
             <div className="mt-4">

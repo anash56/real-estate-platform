@@ -46,6 +46,18 @@ router.post('/:propertyId', auth, async (req: Request, res: Response) => {
       }
     });
 
+    // Create In-App Notification for the Agent
+    const notification = await (prisma as any).notification.create({
+      data: {
+        userId: property.agentId,
+        title: 'New Inquiry Received',
+        message: `A potential buyer has inquired about "${property.title}".`,
+        link: '/dashboard/agent'
+      }
+    });
+    
+    req.app.get('io')?.to(`user_${property.agentId}`).emit('new_notification', notification);
+
     // 3. Send email notification to agent
     if (property.agent) {
         const subject = `You have a new inquiry on "${property.title}"`;
@@ -155,6 +167,18 @@ router.put('/:id/respond', auth, async (req: Request, res: Response) => {
         status: 'RESPONDED' // Update status
       }
     });
+
+    // Notify Buyer of Response
+    const notification = await (prisma as any).notification.create({
+      data: {
+        userId: inquiry.buyerId,
+        title: 'Agent Responded',
+        message: `The agent responded to your inquiry regarding "${inquiry.property.title}".`,
+        link: '/dashboard/buyer'
+      }
+    });
+    
+    req.app.get('io')?.to(`user_${inquiry.buyerId}`).emit('new_notification', notification);
 
     res.json({ success: true, message: 'Response sent successfully', data: { ...updatedInquiry, budget: updatedInquiry.budget?.toString() } });
   } catch (error) {

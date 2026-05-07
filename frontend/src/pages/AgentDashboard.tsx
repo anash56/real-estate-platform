@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function AgentDashboard() {
-  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'tours'>('listings');
   const [listings, setListings] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [tours, setTours] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
@@ -32,6 +33,13 @@ export default function AgentDashboard() {
         });
         const inqData = await inqRes.json();
         if (inqData.success) setInquiries(inqData.data);
+
+        // Fetch Tour Requests
+        const tourRes = await fetch('http://localhost:5000/api/tours/agent', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const tourData = await tourRes.json();
+        if (tourData.success) setTours(tourData.data);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -66,6 +74,23 @@ export default function AgentDashboard() {
     } catch (err) {
       alert('Failed to send response');
     }
+  };
+
+  const handleTourStatus = async (tourId: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/tours/${tourId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTours(tours.map(t => t.id === tourId ? { ...t, status } : t));
+      } else {
+        alert(data.error);
+      }
+    } catch (err) { alert('Failed to update tour status'); }
   };
 
   const getStatusBadge = (property: any) => {
@@ -107,6 +132,12 @@ export default function AgentDashboard() {
           className={`pb-3 px-2 ${activeTab === 'inquiries' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           Received Inquiries ({inquiries.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('tours')}
+          className={`pb-3 px-2 ${activeTab === 'tours' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Tour Requests ({tours.filter(t => t.status === 'PENDING').length})
         </button>
       </div>
 
@@ -186,6 +217,46 @@ export default function AgentDashboard() {
                 </div>
               ) : (
                 <button onClick={() => setActiveResponseId(inquiry.id)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded font-bold hover:bg-blue-50">Reply to Inquiry</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tab Content: Tour Requests */}
+      {activeTab === 'tours' && (
+        <div className="space-y-6">
+          {tours.length === 0 && <p className="text-gray-500">No tour requests received yet.</p>}
+          {tours.map(tour => (
+            <div key={tour.id} className={`bg-white rounded-xl shadow border p-6 flex flex-col lg:flex-row justify-between gap-6 ${tour.status === 'PENDING' ? 'border-l-4 border-l-yellow-400' : ''}`}>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="font-bold text-lg text-gray-900">Tour Request: {tour.property?.title}</h3>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${tour.status === 'APPROVED' ? 'bg-green-100 text-green-800' : tour.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{tour.status}</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">From: <strong>{tour.buyer?.fullName}</strong> • 📧 {tour.buyer?.email} • 📞 {tour.buyer?.phone || 'N/A'}</p>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block">
+                  <p className="text-sm text-gray-500 uppercase font-bold mb-1">Requested Date</p>
+                  <p className="text-xl font-extrabold text-blue-600">{new Date(tour.date).toLocaleDateString()}</p>
+                </div>
+                
+                {tour.message && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded text-sm text-blue-900">
+                    <strong>Buyer Note:</strong> "{tour.message}"
+                  </div>
+                )}
+              </div>
+              
+              {tour.status === 'PENDING' && (
+                <div className="flex flex-col gap-3 justify-center border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6 shrink-0 lg:w-48">
+                  <button onClick={() => handleTourStatus(tour.id, 'APPROVED')} className="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700 transition shadow">
+                    Approve Tour
+                  </button>
+                  <button onClick={() => handleTourStatus(tour.id, 'REJECTED')} className="w-full bg-red-100 text-red-700 font-bold py-2 rounded hover:bg-red-200 transition">
+                    Decline / Reject
+                  </button>
+                </div>
               )}
             </div>
           ))}

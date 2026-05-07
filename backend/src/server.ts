@@ -16,6 +16,8 @@ import defectRoutes from './routes/defect';
 import documentRoutes from './routes/document';
 import inquiryRoutes from './routes/inquiry';
 import moderationRoutes from './routes/moderation';
+import tourRoutes from './routes/tour';
+import notificationRoutes from './routes/notification';
 
 dotenv.config();
 
@@ -39,11 +41,17 @@ const io = new Server(httpServer, {
   }
 });
 
+app.set('io', io);
+
 io.on('connection', (socket) => {
   console.log('User connected to live chat:', socket.id);
 
   socket.on('join_room', (inquiryId) => {
     socket.join(inquiryId);
+  });
+
+  socket.on('join_user_room', (userId) => {
+    socket.join(`user_${userId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -72,6 +80,16 @@ io.on('connection', (socket) => {
       });
 
       if (inquiry && inquiry.property.agent && senderId === inquiry.buyer.id) {
+        const notification = await (prisma as any).notification.create({
+          data: {
+            userId: inquiry.property.agent.id,
+            title: 'New Chat Message',
+            message: `You have a new chat message from ${inquiry.buyer.fullName} regarding your property "${inquiry.property.title}".`,
+            link: `/chat/${inquiryId}`
+          }
+        });
+        io.to(`user_${inquiry.property.agent.id}`).emit('new_notification', notification);
+
         const subject = `New message regarding "${inquiry.property.title}"`;
         const text = `Hi ${inquiry.property.agent.fullName},\n\nYou have a new chat message from ${inquiry.buyer.fullName} regarding your property "${inquiry.property.title}".\n\nMessage:\n"${content}"\n\nLog in to your dashboard to reply in real-time.`;
         await sendEmail(inquiry.property.agent.email, subject, text);
@@ -107,6 +125,8 @@ app.use('/api/defects', defectRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/moderation', moderationRoutes);
+app.use('/api/tours', tourRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -133,6 +153,7 @@ httpServer.listen(PORT, () => {
 ║  Document Routes: http://localhost:${PORT}/api/documents
 ║  Inquiry Routes: http://localhost:${PORT}/api/inquiries
 ║  Moderation Routes: http://localhost:${PORT}/api/moderation
+║  Tour Routes: http://localhost:${PORT}/api/tours
 ╚════════════════════════════════════════╝
   `);
 });

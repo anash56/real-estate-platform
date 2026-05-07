@@ -11,6 +11,11 @@ export default function PropertyDetails() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   
+  const [contactTab, setContactTab] = useState<'message' | 'tour'>('message');
+  const [tourDate, setTourDate] = useState('');
+  const [tourMessage, setTourMessage] = useState('');
+  const [isSubmittingTour, setIsSubmittingTour] = useState(false);
+  
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewDescription, setReviewDescription] = useState('');
@@ -87,6 +92,37 @@ export default function PropertyDetails() {
       alert('Network error while sending inquiry');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleTourSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to request a tour.');
+      return;
+    }
+
+    setIsSubmittingTour(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/tours/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ date: tourDate, message: tourMessage })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert('Tour requested successfully! The agent will review your request.');
+        setTourDate('');
+        setTourMessage('');
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      alert('Network error while requesting tour');
+    } finally {
+      setIsSubmittingTour(false);
     }
   };
 
@@ -226,6 +262,46 @@ export default function PropertyDetails() {
             <p className="text-gray-700 leading-relaxed">{property.description}</p>
           </div>
 
+          {/* Price History Section */}
+          {property.priceHistory && property.priceHistory.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Price Transparency History</h2>
+              <div className="bg-white border rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="p-4 font-semibold text-gray-600">Date</th>
+                      <th className="p-4 font-semibold text-gray-600">Price</th>
+                      <th className="p-4 font-semibold text-gray-600">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {property.priceHistory.map((ph: any, idx: number) => {
+                      const prevPrice = idx > 0 ? Number(property.priceHistory[idx - 1].price) : null;
+                      const currentPrice = Number(ph.price);
+                      let changeElement = <span className="text-gray-500">Initial Price</span>;
+                      
+                      if (prevPrice) {
+                        const diff = currentPrice - prevPrice;
+                        const percentage = ((Math.abs(diff) / prevPrice) * 100).toFixed(1);
+                        if (diff > 0) changeElement = <span className="text-red-600 font-semibold flex items-center gap-1">📈 +₹{diff.toLocaleString()} (+{percentage}%)</span>;
+                        else if (diff < 0) changeElement = <span className="text-green-600 font-semibold flex items-center gap-1">📉 -₹{Math.abs(diff).toLocaleString()} (-{percentage}%)</span>;
+                        else changeElement = <span className="text-gray-500">No Change</span>;
+                      }
+                      return (
+                        <tr key={ph.id} className="border-b last:border-0 hover:bg-gray-50 transition">
+                          <td className="p-4 text-gray-800">{new Date(ph.changedAt).toLocaleDateString()}</td>
+                          <td className="p-4 font-bold text-gray-900">₹{currentPrice.toLocaleString()}</td>
+                          <td className="p-4">{changeElement}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Defect Disclosure Section (Ethical Platform Feature) */}
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
             <h2 className="text-xl font-bold text-orange-800 mb-4">Mandatory Defect Disclosure</h2>
@@ -260,31 +336,58 @@ export default function PropertyDetails() {
             <h3 className="text-xl font-bold mb-2">Interested?</h3>
             <p className="text-gray-600 mb-6">Contact the agent securely.</p>
 
-            <form onSubmit={handleInquirySubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Your Message</label>
-                <textarea 
-                  className="w-full border border-gray-300 rounded-lg p-3 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="I'm interested in this property..."
-                  value={inquiryText}
-                  onChange={(e) => setInquiryText(e.target.value)}
-                  required
-                ></textarea>
-              </div>
+            {/* Tabs for Contact Method */}
+            <div className="flex mb-6 border-b">
+              <button onClick={() => setContactTab('message')} className={`flex-1 pb-2 font-bold transition-colors ${contactTab === 'message' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Message</button>
+              <button onClick={() => setContactTab('tour')} className={`flex-1 pb-2 font-bold transition-colors ${contactTab === 'tour' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Request Tour</button>
+            </div>
 
-              <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 flex gap-2">
-                <span>🛡️</span>
-                <p><strong>Privacy Protected:</strong> Your email and phone number will be hidden from the agent until you choose to reveal them.</p>
-              </div>
+            {contactTab === 'message' ? (
+              <form onSubmit={handleInquirySubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Your Message</label>
+                  <textarea 
+                    className="w-full border border-gray-300 rounded-lg p-3 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="I'm interested in this property..."
+                    value={inquiryText}
+                    onChange={(e) => setInquiryText(e.target.value)}
+                    required
+                  ></textarea>
+                </div>
 
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {isSubmitting ? 'Sending...' : 'Send Secure Inquiry'}
-              </button>
-            </form>
+                <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 flex gap-2">
+                  <span>🛡️</span>
+                  <p><strong>Privacy Protected:</strong> Your email and phone number will be hidden from the agent until you choose to reveal them.</p>
+                </div>
+
+                <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                  {isSubmitting ? 'Sending...' : 'Send Secure Inquiry'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleTourSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
+                  <input type="date" required min={new Date().toISOString().split('T')[0]} className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" value={tourDate} onChange={(e) => setTourDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message (Optional)</label>
+                  <textarea 
+                    className="w-full border border-gray-300 rounded-lg p-3 h-24 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Any specific times you prefer? e.g. Afternoon around 2PM."
+                    value={tourMessage}
+                    onChange={(e) => setTourMessage(e.target.value)}
+                  ></textarea>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 flex gap-2">
+                  <span>📅</span>
+                  <p>The agent will confirm the exact time directly with you.</p>
+                </div>
+                <button type="submit" disabled={isSubmittingTour} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                  {isSubmittingTour ? 'Requesting...' : 'Request Property Tour'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </div>

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function BuyerDashboard() {
-  const [activeTab, setActiveTab] = useState<'saved' | 'inquiries'>('saved');
+  const [activeTab, setActiveTab] = useState<'saved' | 'inquiries' | 'tours'>('saved');
   const [savedProperties, setSavedProperties] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
+  const [tours, setTours] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -23,6 +24,13 @@ export default function BuyerDashboard() {
         });
         const inqData = await inqRes.json();
         if (inqData.success) setInquiries(inqData.data);
+
+        // Fetch Tours
+        const tourRes = await fetch('http://localhost:5000/api/tours/buyer', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const tourData = await tourRes.json();
+        if (tourData.success) setTours(tourData.data);
 
         // Fetch Saved Properties (Assuming endpoint /api/properties/favorites)
         const favRes = await fetch('http://localhost:5000/api/properties/favorites', {
@@ -108,6 +116,12 @@ export default function BuyerDashboard() {
           className={`pb-3 px-2 ${activeTab === 'inquiries' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           My Inquiries ({inquiries.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('tours')}
+          className={`pb-3 px-2 ${activeTab === 'tours' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          My Tours ({tours.length})
         </button>
       </div>
 
@@ -200,6 +214,45 @@ export default function BuyerDashboard() {
                     {inquiry.respondedAt && <p className="text-xs text-gray-500 mt-2">{new Date(inquiry.respondedAt).toLocaleDateString()}</p>}
                   </div>
                 )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Tab Content: My Tours */}
+      {activeTab === 'tours' && (
+        <div className="space-y-6">
+          {tours.length === 0 ? (
+            <p className="text-gray-500">You haven't requested any tours yet.</p>
+          ) : (
+            tours.map(tour => (
+              <div key={tour.id} className="bg-white rounded-xl shadow border p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="font-bold text-lg text-gray-900">
+                      <Link to={`/property/${tour.propertyId}`} className="hover:text-blue-600 underline">
+                        {tour.property?.title || 'Property'}
+                      </Link>
+                    </h3>
+                    <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${
+                      tour.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      tour.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {tour.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">{tour.property?.address}, {tour.property?.city}</p>
+                  {tour.message && <p className="text-sm text-gray-500 italic bg-gray-50 p-2 rounded border border-gray-100">"{tour.message}"</p>}
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 md:w-64 text-sm text-blue-900 shrink-0">
+                  <p className="font-semibold mb-1">📅 Requested Date:</p>
+                  <p className="font-bold text-lg mb-3">{new Date(tour.date).toLocaleDateString()}</p>
+                  <p className="font-semibold text-xs">Agent: {tour.property?.agent?.fullName}</p>
+                  {tour.property?.agent?.phone && tour.status === 'APPROVED' && <p className="text-xs font-bold mt-1">📞 {tour.property?.agent?.phone}</p>}
+                </div>
               </div>
             ))
           )}
