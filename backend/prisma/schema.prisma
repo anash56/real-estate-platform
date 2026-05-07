@@ -62,6 +62,7 @@ model Property {
   status            String   @default("DRAFT")
   moderationStatus  String   @default("PENDING_REVIEW")
   
+  viewCount         Int                 @default(0)
   riskScore         Int                 @default(0)
   flaggedReasons    String[]
   defectDisclosure  DefectDisclosure?

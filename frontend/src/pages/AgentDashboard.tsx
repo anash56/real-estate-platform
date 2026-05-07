@@ -133,7 +133,7 @@ export default function AgentDashboard() {
                   )}
 
                   <div className="flex justify-between items-end mt-auto pt-4 border-t border-gray-100">
-                    <p className="text-gray-500 text-sm">👁️ 0 views</p>
+                    <p className="text-gray-500 text-sm">👁️ {property.viewCount || 0} views</p>
                     <div className="flex gap-2">
                       <Link to={`/listings/edit/${property.id}`} className="px-4 py-2 border border-gray-300 rounded font-semibold hover:bg-gray-50 transition block text-center">Edit</Link>
                       {property.status === 'ACTIVE' && (

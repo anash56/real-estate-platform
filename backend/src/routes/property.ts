@@ -215,6 +215,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Property not found' });
     }
 
+    // Increment view count in the database
+    await (prisma as any).property.update({
+      where: { id: id as string },
+      data: { viewCount: { increment: 1 } }
+    });
+    property.viewCount = (property.viewCount || 0) + 1;
+
     // Safely convert BigInt to string
     res.json({ success: true, data: { ...property, price: property.price.toString() } });
   } catch (error) {
@@ -314,7 +321,7 @@ router.post('/:id/reviews', auth, async (req: Request, res: Response) => {
 router.put('/:id', auth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, propertyType, price, address, city } = req.body;
+    const { title, description, propertyType, price, address, city, amenities, submitForReview } = req.body;
 
     // 1. Verify property exists and belongs to the agent
     const property = await prisma.property.findUnique({
@@ -329,16 +336,41 @@ router.put('/:id', auth, async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, error: 'Unauthorized to edit this property' });
     }
 
-    // 2. Update property
+    // If submitting a draft/rejected property for review, re-run moderation
+    if (submitForReview && (property.status === 'DRAFT' || property.status === 'REJECTED')) {
+      const moderationResult = evaluatePropertyRisk({
+        title,
+        description,
+        propertyType,
+        amenities: amenities || property.amenities
+      });
+
+      const updatedProperty = await prisma.property.update({
+        where: { id: id as string },
+        data: {
+          title, description, propertyType, address, city,
+          price: price ? BigInt(price) : property.price,
+          amenities: amenities || property.amenities,
+          status: 'ACTIVE', // No longer a draft, it's in the queue
+          moderationStatus: moderationResult.status,
+          riskScore: moderationResult.score,
+          flaggedReasons: moderationResult.reasons
+        }
+      });
+      return res.json({ success: true, message: 'Property submitted for review', data: { ...updatedProperty, price: updatedProperty.price.toString() } });
+    }
+
+    // 2. Otherwise, just update property details (normal update)
     const updatedProperty = await prisma.property.update({
       where: { id: id as string },
       data: {
         title,
         description,
         propertyType,
-        price: price ? BigInt(price) : property.price,
         address,
-        city
+        city,
+        price: price ? BigInt(price) : property.price,
+        amenities: amenities || property.amenities,
       }
     });
 
