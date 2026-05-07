@@ -17,6 +17,8 @@ model User {
   phoneVerified     Boolean  @default(false)
   phone             String?  @unique
   profilePhoto      String?
+  governmentId      String?
+  idVerified        Boolean  @default(false)
   emailOtp          String?
   emailOtpExpiry    DateTime?
   phoneOtp          String?
@@ -32,6 +34,7 @@ model User {
   favorites         Favorite[]
   agreements        UserAgreement[]
   notifications     Notification[]
+  savedSearches     SavedSearch[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -62,6 +65,7 @@ model Property {
   builtYear         Int?
   facing            String?
   amenities         String[]
+  virtualTourUrl    String?
   
   status            String   @default("DRAFT")
   moderationStatus  String   @default("PENDING_REVIEW")
@@ -98,6 +102,17 @@ model PropertyImage {
   uploadedAt        DateTime @default(now())
   
   @@index([propertyId])
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String
+  filters     Json
+  createdAt   DateTime @default(now())
+  @@index([userId])
 }
 
 model Notification {

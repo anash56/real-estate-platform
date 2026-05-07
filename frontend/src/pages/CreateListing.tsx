@@ -19,6 +19,7 @@ export default function CreateListing() {
     propertyType: 'APARTMENT',
     address: '',
     city: '',
+    virtualTourUrl: '',
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
 
@@ -89,6 +90,7 @@ export default function CreateListing() {
         latitude: 0.0,
         longitude: 0.0,
         amenities: [],
+        virtualTourUrl: propertyDetails.virtualTourUrl || null,
         isDraft: true // Set the draft flag to true
       };
 
@@ -151,6 +153,7 @@ export default function CreateListing() {
         latitude: 0.0,
         longitude: 0.0,
         amenities: [],
+        virtualTourUrl: propertyDetails.virtualTourUrl || null,
         isDraft: false
       };
 
@@ -281,6 +284,17 @@ export default function CreateListing() {
                   onChange={e => setPropertyDetails({...propertyDetails, address: e.target.value})}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Virtual 3D Tour URL (Optional)</label>
+              <input 
+                type="url" 
+                className="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                placeholder="e.g. https://my.matterport.com/show/?m=..."
+                value={propertyDetails.virtualTourUrl}
+                onChange={e => setPropertyDetails({...propertyDetails, virtualTourUrl: e.target.value})}
+              />
             </div>
 
             <div>

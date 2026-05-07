@@ -26,6 +26,20 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Configure Multer for Government IDs
+const idStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/ids');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'id-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const uploadId = multer({ storage: idStorage });
+
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -258,6 +272,8 @@ router.get('/me', auth, async (req: Request, res: Response) => {
         fullName: user.fullName,
         role: user.role,
         profilePhoto: user.profilePhoto,
+        governmentId: user.governmentId,
+        idVerified: user.idVerified,
         emailVerified: user.emailVerified,
         phoneVerified: user.phoneVerified,
         createdAt: user.createdAt
@@ -330,6 +346,29 @@ router.post('/profile/avatar', auth, upload.single('avatar'), async (req: Reques
   } catch (error) {
     console.error('❌ Avatar upload error:', error);
     res.status(500).json({ success: false, error: 'Failed to upload avatar' });
+  }
+});
+
+// ============================================
+// ROUTE 6.5: POST /api/auth/profile/government-id
+// ============================================
+// Upload Government ID for verification
+
+router.post('/profile/government-id', auth, uploadId.single('governmentId'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No document uploaded' });
+    }
+    const idUrl = `/uploads/ids/${req.file.filename}`;
+    const user = await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { governmentId: idUrl, idVerified: false }, // Reset verification on new upload
+      select: { governmentId: true, idVerified: true }
+    });
+    res.json({ success: true, message: 'Government ID uploaded successfully', data: user });
+  } catch (error) {
+    console.error('❌ Gov ID upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload Government ID' });
   }
 });
 

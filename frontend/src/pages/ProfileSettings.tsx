@@ -8,6 +8,7 @@ export default function ProfileSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingId, setIsUploadingId] = useState(false);
   
   const [showEmailOtp, setShowEmailOtp] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
@@ -92,6 +93,30 @@ export default function ProfileSettings() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleIdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingId(true);
+    const formData = new FormData();
+    formData.append('governmentId', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/auth/profile/government-id', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser({ ...user, governmentId: data.data.governmentId, idVerified: data.data.idVerified });
+        alert('Government ID uploaded successfully! Please wait for Admin verification.');
+      } else alert(data.error);
+    } catch (err) { alert('Error uploading Government ID'); } 
+    finally { setIsUploadingId(false); }
   };
 
   const handleSendOtp = async (type: 'email' | 'phone') => {
@@ -230,6 +255,25 @@ export default function ProfileSettings() {
             >
               {isSaving ? 'Saving...' : 'Save Profile Details'}
             </button>
+
+            {user?.role === 'AGENT' && (
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <h2 className="text-xl font-bold mb-4 text-gray-900">KYC Verification</h2>
+                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                  {user?.idVerified ? (
+                    <p className="text-green-600 font-bold flex items-center gap-2">✅ Government ID Verified</p>
+                  ) : user?.governmentId ? (
+                    <p className="text-yellow-600 font-bold flex items-center gap-2">⏳ ID Uploaded - Pending Admin Verification</p>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-3">As an Agent, you must upload a valid Government ID (Aadhaar, Passport, etc.) to get verified. <strong>Your properties cannot be approved until you are verified.</strong></p>
+                      <input type="file" accept="image/*,.pdf" onChange={handleIdUpload} disabled={isUploadingId} className="text-sm w-full border border-gray-300 p-2 rounded bg-white" />
+                      {isUploadingId && <p className="text-sm text-blue-600 mt-2 font-bold animate-pulse">Uploading securely...</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>

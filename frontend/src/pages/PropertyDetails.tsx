@@ -249,6 +249,21 @@ export default function PropertyDetails() {
             <div className="w-full h-96 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400">No images available</div>
           )}
 
+          {/* Virtual 3D Tour Section */}
+          {property.virtualTourUrl && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4">Virtual 3D Tour</h2>
+              <div className="w-full h-[500px] rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-gray-900">
+                <iframe 
+                  src={property.virtualTourUrl} 
+                  className="w-full h-full border-0"
+                  allowFullScreen 
+                  allow="xr-spatial-tracking"
+                ></iframe>
+              </div>
+            </div>
+          )}
+
           {/* Basic Details */}
           <div className="flex gap-8 py-4 border-y border-gray-200">
             <div className="text-center"><span className="block text-2xl font-bold">{property.bedrooms}</span> Beds</div>

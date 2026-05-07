@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function BuyerDashboard() {
-  const [activeTab, setActiveTab] = useState<'saved' | 'inquiries' | 'tours'>('saved');
+  const [activeTab, setActiveTab] = useState<'saved' | 'inquiries' | 'tours' | 'alerts'>('saved');
   const [savedProperties, setSavedProperties] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -31,6 +32,13 @@ export default function BuyerDashboard() {
         });
         const tourData = await tourRes.json();
         if (tourData.success) setTours(tourData.data);
+
+        // Fetch Saved Search Alerts
+        const alertsRes = await fetch('http://localhost:5000/api/properties/saved-searches', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const alertsData = await alertsRes.json();
+        if (alertsData.success) setAlerts(alertsData.data);
 
         // Fetch Saved Properties (Assuming endpoint /api/properties/favorites)
         const favRes = await fetch('http://localhost:5000/api/properties/favorites', {
@@ -92,6 +100,21 @@ export default function BuyerDashboard() {
     }
   };
 
+  const handleDeleteAlert = async (id: string) => {
+    if (!window.confirm('Delete this search alert?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/properties/saved-searches/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAlerts(alerts.filter(a => a.id !== id));
+      } else alert(data.error);
+    } catch (err) { alert('Error deleting alert'); }
+  };
+
   if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading your dashboard...</div>;
 
   return (
@@ -122,6 +145,12 @@ export default function BuyerDashboard() {
           className={`pb-3 px-2 ${activeTab === 'tours' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           My Tours ({tours.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('alerts')}
+          className={`pb-3 px-2 ${activeTab === 'alerts' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Search Alerts ({alerts.length})
         </button>
       </div>
 
@@ -255,6 +284,39 @@ export default function BuyerDashboard() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {/* Tab Content: Search Alerts */}
+      {activeTab === 'alerts' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {alerts.length === 0 ? (
+            <p className="text-gray-500 col-span-full">You haven't set up any search alerts.</p>
+          ) : (
+            alerts.map(alert => {
+              const filters = alert.filters;
+              const params = new URLSearchParams();
+              if (filters.search) params.append('search', filters.search);
+              if (filters.propertyType) params.append('propertyType', filters.propertyType);
+              if (filters.minPrice) params.append('minPrice', filters.minPrice);
+              if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+              if (filters.bedrooms) params.append('bedrooms', filters.bedrooms);
+              if (filters.bathrooms) params.append('bathrooms', filters.bathrooms);
+              if (filters.amenities && filters.amenities.length > 0) params.append('amenities', filters.amenities.join(','));
+
+              return (
+                <div key={alert.id} className="bg-white rounded-xl shadow border p-6 relative">
+                  <h3 className="font-bold text-xl text-gray-900 mb-2">🔔 {alert.name}</h3>
+                  <p className="text-sm text-gray-500 mb-4 break-words">Filters applied: {Array.from(params.entries()).map(([k, v]) => `${k}=${v}`).join(', ') || 'None'}</p>
+                  <div className="flex gap-3">
+                    <Link to={`/search?${params.toString()}`} className="flex-1 bg-blue-50 text-blue-700 font-bold py-2 rounded text-center hover:bg-blue-100 transition">View Current Matches</Link>
+                    <button onClick={() => handleDeleteAlert(alert.id)} className="bg-red-50 text-red-600 font-bold py-2 px-4 rounded hover:bg-red-100 transition">Delete</button>
+                  </div>
+                  <p className="text-xs text-gray-400 absolute top-4 right-4">{new Date(alert.createdAt).toLocaleDateString()}</p>
+                </div>
+              );
+            })
           )}
         </div>
       )}

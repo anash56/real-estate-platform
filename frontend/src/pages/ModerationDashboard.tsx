@@ -142,6 +142,25 @@ export default function ModerationDashboard() {
     }
   };
 
+  const handleVerifyAgentId = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/moderation/users/${userId}/verify-id`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQueue(queue.map(p => p.agent?.id === userId ? { ...p, agent: { ...p.agent, idVerified: true } } : p));
+        alert('Agent ID verified successfully!');
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      alert('Error verifying agent ID');
+    }
+  };
+
   const handleDeleteReview = async (reviewId: string) => {
     if (!window.confirm('Are you sure you want to permanently delete this review?')) return;
     try {
@@ -199,6 +218,25 @@ export default function ModerationDashboard() {
                     <h2 className="text-xl font-bold text-gray-900">{property.title}</h2>
                     <p className="text-gray-600">{property.address}, {property.city}</p>
                     <p className="text-sm font-medium text-gray-500 mt-1">Listed by: {property.agent?.fullName} ({property.agent?.email})</p>
+                    
+                    <div className="mt-3 p-3 bg-gray-50 border rounded-lg text-sm inline-block">
+                      <p className="font-semibold mb-1 text-gray-700">Agent Verification Status:</p>
+                      {property.agent?.idVerified ? (
+                        <span className="text-green-600 font-bold flex items-center gap-1">✅ Identity Verified</span>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-red-600 font-bold flex items-center gap-1">❌ Not Verified</span>
+                          {property.agent?.governmentId ? (
+                            <div className="flex items-center gap-3 mt-1">
+                              <a href={`http://localhost:5000${property.agent.governmentId}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-semibold text-xs border border-blue-200 px-2 py-1 rounded bg-white shadow-sm">🔍 View ID</a>
+                              <button onClick={() => handleVerifyAgentId(property.agent.id)} className="bg-green-100 text-green-800 px-3 py-1 rounded text-xs font-bold hover:bg-green-200 border border-green-200 shadow-sm transition">✅ Verify Agent Now</button>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 italic mt-1 block">No ID uploaded by agent yet</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className={`text-lg font-bold px-3 py-1 rounded ${property.riskScore > 50 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
@@ -247,7 +285,14 @@ export default function ModerationDashboard() {
                   </div>
                 ) : (
                   <div className="flex gap-4 mt-4 border-t pt-4">
-                    <button onClick={() => handleApprove(property.id)} className="bg-green-600 text-white px-6 py-2 rounded shadow hover:bg-green-700 font-semibold transition">Approve Property</button>
+                    <button 
+                      onClick={() => handleApprove(property.id)} 
+                      disabled={!property.agent?.idVerified}
+                      className={`px-6 py-2 rounded shadow font-semibold transition ${property.agent?.idVerified ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                      title={!property.agent?.idVerified ? 'Agent must be verified first' : ''}
+                    >
+                      {!property.agent?.idVerified ? '⚠️ Identity Verification Required' : 'Approve Property'}
+                    </button>
                     <button onClick={() => setRejectingId(property.id)} className="bg-red-100 text-red-700 px-6 py-2 rounded shadow hover:bg-red-200 font-semibold transition">Reject Property</button>
                   </div>
                 )}

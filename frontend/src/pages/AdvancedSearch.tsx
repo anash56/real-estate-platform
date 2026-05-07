@@ -22,6 +22,7 @@ export default function AdvancedSearch() {
   const [properties, setProperties] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   
   // Filter States
   const [search, setSearch] = useState('');
@@ -97,15 +98,48 @@ export default function AdvancedSearch() {
     setBedrooms(''); setBathrooms(''); setSelectedAmenities([]);
   };
 
+  const handleSaveSearch = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return alert('Please log in to save search alerts.');
+    
+    const name = prompt('Give this search alert a name (e.g., "3BHK under 50L"):');
+    if (!name) return;
+
+    const filters = { search, propertyType, minPrice, maxPrice, bedrooms, bathrooms, amenities: selectedAmenities };
+    try {
+      const res = await fetch('http://localhost:5000/api/properties/saved-searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, filters })
+      });
+      const data = await res.json();
+      if (data.success) alert('Search alert saved! We will notify you when new properties match.');
+      else alert(data.error);
+    } catch (e) { alert('Error saving search alert'); }
+  };
+
+  const toggleCompare = (e: React.MouseEvent, id: string) => {
+    e.preventDefault(); // Prevents clicking the Link
+    setCompareIds(prev => {
+      if (prev.includes(id)) return prev.filter(p => p !== id);
+      if (prev.length >= 3) {
+        alert('You can only compare up to 3 properties at once.');
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-6 mt-4 min-h-screen">
       <div className="flex flex-col lg:flex-row gap-8">
         
         {/* Sidebar Filters */}
         <div className="w-full lg:w-1/4 bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit sticky top-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Filters</h2>
-            <button onClick={clearFilters} className="text-sm text-blue-600 hover:text-blue-800 underline">Clear All</button>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex-1">Filters</h2>
+            <button onClick={handleSaveSearch} className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded-full font-bold mr-2 transition">🔔 Save Alert</button>
+            <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-600 underline">Clear</button>
           </div>
 
           <div className="space-y-6">
@@ -197,6 +231,9 @@ export default function AdvancedSearch() {
                 return (
                   <Link to={`/property/${property.id}`} key={property.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-shadow group flex flex-col">
                     <div className="relative h-48 overflow-hidden"><img src={imgUrl} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /><div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-gray-800">{property.propertyType}</div></div>
+                    <button onClick={(e) => toggleCompare(e, property.id)} className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow transition z-10 ${compareIds.includes(property.id) ? 'bg-blue-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'}`}>
+                      {compareIds.includes(property.id) ? '✓ Added' : '+ Compare'}
+                    </button>
                     <div className="p-5 flex flex-col flex-1"><p className="text-2xl font-extrabold text-blue-600 mb-1">₹{property.price}</p><h3 className="font-bold text-lg text-gray-900 mb-1 truncate">{property.title}</h3><p className="text-gray-500 text-sm mb-4 line-clamp-1">{property.address}, {property.city}</p><div className="flex justify-between items-center text-sm text-gray-600 mt-auto pt-4 border-t border-gray-100"><span className="flex items-center gap-1 font-semibold">🛏️ {property.bedrooms} Beds</span><span className="flex items-center gap-1 font-semibold">🛁 {property.bathrooms} Baths</span><span className="flex items-center gap-1 font-semibold">📏 {property.area} sqft</span></div></div>
                   </Link>
                 );
@@ -215,7 +252,10 @@ export default function AdvancedSearch() {
                           <img src={imgUrl} alt={property.title} className="w-full h-28 object-cover rounded mb-2" />
                           <h3 className="font-bold text-sm text-gray-900 truncate mb-1">{property.title}</h3>
                           <p className="text-blue-600 font-extrabold text-sm mb-2">₹{property.price}</p>
-                          <Link to={`/property/${property.id}`} className="block text-center bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-bold hover:bg-blue-100 transition">View Details</Link>
+                          <div className="flex flex-col gap-2">
+                            <Link to={`/property/${property.id}`} className="block text-center bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-bold hover:bg-blue-100 transition">View Details</Link>
+                            <button onClick={(e) => toggleCompare(e, property.id)} className={`py-1.5 rounded text-xs font-bold transition ${compareIds.includes(property.id) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{compareIds.includes(property.id) ? '✓ Added' : '+ Compare'}</button>
+                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -226,6 +266,22 @@ export default function AdvancedSearch() {
           )}
         </div>
       </div>
+
+      {/* Floating Compare Bar */}
+      {compareIds.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-8px_15px_-3px_rgba(0,0,0,0.1)] p-4 z-[1000] animate-fade-in-up">
+          <div className="max-w-7xl mx-auto flex justify-between items-center px-4">
+            <div className="flex items-center gap-4">
+              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold">{compareIds.length}/3 Selected</span>
+              <span className="text-gray-600 hidden md:inline">Select up to 3 properties to compare side-by-side.</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <button onClick={() => setCompareIds([])} className="text-gray-500 font-semibold hover:text-red-500 transition">Clear All</button>
+              <Link to={`/compare?ids=${compareIds.join(',')}`} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition">Compare Now ➔</Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

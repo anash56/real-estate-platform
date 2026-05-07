@@ -28,7 +28,7 @@ router.get('/queue', auth, async (req: Request, res: Response) => {
     const properties = await prisma.property.findMany({
       where: { moderationStatus: 'PENDING_REVIEW' },
       include: {
-        agent: { select: { fullName: true, email: true } },
+        agent: { select: { id: true, fullName: true, email: true, governmentId: true, idVerified: true } },
         defectDisclosure: true,
         legalDocuments: true
       },
@@ -62,6 +62,16 @@ router.post('/:propertyId/approve', auth, async (req: Request, res: Response) =>
 
     const { propertyId } = req.params;
 
+    // 1. Check if the agent's Government ID is verified
+    const propertyCheck = await prisma.property.findUnique({
+      where: { id: propertyId as string },
+      include: { agent: true }
+    });
+    if (!propertyCheck) return res.status(404).json({ success: false, error: 'Property not found' });
+    if (!propertyCheck.agent.idVerified) {
+      return res.status(400).json({ success: false, error: 'The Agent must have a Verified Government ID before their properties can be approved.' });
+    }
+
     const property = await prisma.property.update({
       where: { id: propertyId as string },
       data: {
@@ -69,6 +79,37 @@ router.post('/:propertyId/approve', auth, async (req: Request, res: Response) =>
         moderationStatus: 'APPROVED'
       }
     });
+
+    // --- TRIGGER SAVED SEARCH ALERTS ---
+    try {
+      const savedSearches = await (prisma as any).savedSearch.findMany();
+      for (const search of savedSearches) {
+        const f = search.filters;
+        let match = true;
+        if (f.propertyType && property.propertyType !== f.propertyType) match = false;
+        if (f.minPrice && property.price < BigInt(f.minPrice)) match = false;
+        if (f.maxPrice && property.price > BigInt(f.maxPrice)) match = false;
+        if (f.bedrooms && property.bedrooms < Number(f.bedrooms)) match = false;
+        if (f.bathrooms && property.bathrooms < Number(f.bathrooms)) match = false;
+        if (f.search) {
+          const s = f.search.toLowerCase();
+          if (!property.title.toLowerCase().includes(s) && !property.city.toLowerCase().includes(s) && !property.address.toLowerCase().includes(s)) match = false;
+        }
+        if (f.amenities && f.amenities.length > 0 && !f.amenities.every((a: string) => property.amenities.includes(a))) match = false;
+
+        if (match) {
+          const notification = await (prisma as any).notification.create({
+            data: {
+              userId: search.userId,
+              title: 'New Property Alert! 🔔',
+              message: `A new property matching your search "${search.name}" was just approved: ${property.title}`,
+              link: `/property/${property.id}`
+            }
+          });
+          req.app.get('io')?.to(`user_${search.userId}`).emit('new_notification', notification);
+        }
+      }
+    } catch (e) { console.error('Failed to process search alerts', e); }
 
     res.json({ success: true, message: 'Property approved and is now active', data: { ...property, price: property.price.toString() } });
   } catch (error) {
@@ -133,6 +174,29 @@ router.put('/documents/:id/verify', auth, async (req: Request, res: Response) =>
   } catch (error) {
     console.error('❌ Verify document error:', error);
     res.status(500).json({ success: false, error: 'Failed to verify document' });
+  }
+});
+
+// ============================================
+// ROUTE: PUT /api/moderation/users/:userId/verify-id
+// ============================================
+// Admin manually verifies an Agent's Government ID
+
+router.put('/users/:userId/verify-id', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+    const { userId } = req.params;
+    await (prisma as any).user.update({
+      where: { id: userId as string },
+      data: { idVerified: true }
+    });
+
+    res.json({ success: true, message: 'Agent ID verified successfully' });
+  } catch (error) {
+    console.error('❌ Verify agent ID error:', error);
+    res.status(500).json({ success: false, error: 'Failed to verify agent ID' });
   }
 });
 

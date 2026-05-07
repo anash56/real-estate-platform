@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+// @ts-ignore
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AgentDashboard() {
-  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'tours'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'tours' | 'analytics'>('analytics');
   const [listings, setListings] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
+  const [analytics, setAnalytics] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +43,13 @@ export default function AgentDashboard() {
         });
         const tourData = await tourRes.json();
         if (tourData.success) setTours(tourData.data);
+
+        // Fetch Analytics
+        const analyticsRes = await fetch('http://localhost:5000/api/properties/agent/analytics', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const analyticsData = await analyticsRes.json();
+        if (analyticsData.success) setAnalytics(analyticsData.data);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -122,6 +132,12 @@ export default function AgentDashboard() {
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200 mb-8 text-lg font-medium">
         <button 
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 px-2 ${activeTab === 'analytics' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Performance Analytics
+        </button>
+        <button 
           onClick={() => setActiveTab('listings')}
           className={`pb-3 px-2 ${activeTab === 'listings' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
@@ -140,6 +156,50 @@ export default function AgentDashboard() {
           Tour Requests ({tours.filter(t => t.status === 'PENDING').length})
         </button>
       </div>
+
+      {/* Tab Content: Analytics */}
+      {activeTab === 'analytics' && analytics && (
+        <div className="space-y-8 animate-fade-in">
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border p-6 border-l-4 border-blue-600">
+              <p className="text-gray-500 text-sm font-semibold uppercase">Total Views</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.summary.totalViews.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-6 border-l-4 border-red-500">
+              <p className="text-gray-500 text-sm font-semibold uppercase">Total Favorites</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.summary.totalFavorites.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-6 border-l-4 border-green-500">
+              <p className="text-gray-500 text-sm font-semibold uppercase">Total Inquiries</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.summary.totalInquiries.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-6 border-l-4 border-purple-500">
+              <p className="text-gray-500 text-sm font-semibold uppercase">Active Listings</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.summary.totalListings.toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Performance Chart */}
+          <div className="bg-white rounded-xl shadow border p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">6-Month Trend Analysis</h3>
+            <div className="w-full h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} dx={-10} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                  <Line type="monotone" dataKey="Views" stroke="#2563EB" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="Favorites" stroke="#EF4444" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="Inquiries" stroke="#10B981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab Content: My Listings */}
       {activeTab === 'listings' && (
