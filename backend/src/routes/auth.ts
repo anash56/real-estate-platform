@@ -203,6 +203,14 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
+    // ✓ Check if user is suspended
+    if ((user as any).isSuspended) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended by the administrator.'
+      });
+    }
+
     console.log(`User logged in: ${user.email}`);
 
     // ✓ Generate JWT token
@@ -274,6 +282,7 @@ router.get('/me', auth, async (req: Request, res: Response) => {
         profilePhoto: user.profilePhoto,
         governmentId: user.governmentId,
         idVerified: user.idVerified,
+        agentLicense: user.agentLicense,
         emailVerified: user.emailVerified,
         phoneVerified: user.phoneVerified,
         createdAt: user.createdAt
@@ -309,7 +318,7 @@ router.post('/logout', auth, (req: Request, res: Response) => {
 
 router.put('/profile', auth, async (req: Request, res: Response) => {
   try {
-    const { fullName, phone } = req.body;
+    const { fullName, phone, agentLicense } = req.body;
     
     // If the phone number is changed, reset its verification status
     const currentUser = await prisma.user.findUnique({ where: { id: req.userId as string } });
@@ -317,7 +326,7 @@ router.put('/profile', auth, async (req: Request, res: Response) => {
 
     const user = await prisma.user.update({
       where: { id: req.userId as string },
-      data: { fullName, phone, phoneVerified: phoneChanged ? false : currentUser?.phoneVerified }
+      data: { fullName, phone, agentLicense, phoneVerified: phoneChanged ? false : currentUser?.phoneVerified }
     });
     res.json({ success: true, message: 'Profile updated successfully', data: user });
   } catch (error) {

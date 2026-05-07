@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function ModerationDashboard() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'reviews'>('properties');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'properties' | 'reviews' | 'users' | 'disputes'>('analytics');
   const [queue, setQueue] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [analytics, setAnalytics] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +42,21 @@ export default function ModerationDashboard() {
         } else {
           setError(revData.error || 'Failed to load queue');
         }
+
+        // Fetch Users
+        const usersRes = await fetch('http://localhost:5000/api/moderation/users', { headers: { Authorization: `Bearer ${token}` } });
+        const usersData = await usersRes.json();
+        if (usersData.success) setUsers(usersData.data);
+
+        // Fetch Disputes
+        const disputesRes = await fetch('http://localhost:5000/api/moderation/disputes', { headers: { Authorization: `Bearer ${token}` } });
+        const disputesData = await disputesRes.json();
+        if (disputesData.success) setDisputes(disputesData.data);
+
+        // Fetch Analytics
+        const analyticsRes = await fetch('http://localhost:5000/api/moderation/analytics', { headers: { Authorization: `Bearer ${token}` } });
+        const analyticsData = await analyticsRes.json();
+        if (analyticsData.success) setAnalytics(analyticsData.data);
       } catch (err) {
         setError('Network error occurred');
       } finally {
@@ -178,6 +196,38 @@ export default function ModerationDashboard() {
     }
   };
 
+  const handleToggleUserSuspension = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to change this user\'s suspension status?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/moderation/users/${userId}/suspend`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers(users.map(u => u.id === userId ? { ...u, isSuspended: !u.isSuspended } : u));
+      } else alert(data.error);
+    } catch (err) { alert('Error updating user'); }
+  };
+
+  const handleResolveDispute = async (disputeId: string, status: string) => {
+    const adminNotes = prompt('Enter your resolution notes (internal/visible to parties):');
+    if (adminNotes === null) return; // Cancelled
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/moderation/disputes/${disputeId}/resolve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status, adminNotes })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDisputes(disputes.map(d => d.id === disputeId ? { ...d, status, adminNotes } : d));
+      } else alert(data.error);
+    } catch (err) { alert('Error resolving dispute'); }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-600">Loading moderation queue...</div>;
   if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
 
@@ -190,6 +240,12 @@ export default function ModerationDashboard() {
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200 mb-8 text-lg font-medium">
         <button 
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 px-2 ${activeTab === 'analytics' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Platform Analytics
+        </button>
+        <button 
           onClick={() => setActiveTab('properties')}
           className={`pb-3 px-2 ${activeTab === 'properties' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
@@ -201,7 +257,47 @@ export default function ModerationDashboard() {
         >
           Manage Reviews ({reviews.length})
         </button>
+        <button 
+          onClick={() => setActiveTab('users')}
+          className={`pb-3 px-2 ${activeTab === 'users' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Users ({users.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('disputes')}
+          className={`pb-3 px-2 ${activeTab === 'disputes' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Disputes ({disputes.filter(d => d.status === 'OPEN').length})
+        </button>
       </div>
+
+      {/* Tab Content: Analytics */}
+      {activeTab === 'analytics' && analytics && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+              <p className="text-sm font-bold text-gray-500 uppercase">Total Users</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.users.total}</p>
+              <p className="text-xs text-red-500 mt-2 font-semibold">{analytics.users.suspended} Suspended</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+              <p className="text-sm font-bold text-gray-500 uppercase">Active Properties</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.properties.active}</p>
+              <p className="text-xs text-yellow-600 mt-2 font-semibold">{analytics.properties.pending} Pending Review</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+              <p className="text-sm font-bold text-gray-500 uppercase">Open Disputes</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.disputes.open}</p>
+              <p className="text-xs text-gray-500 mt-2 font-semibold">{analytics.disputes.total} Total Lifetime</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+              <p className="text-sm font-bold text-gray-500 uppercase">Total Inquiries</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-2">{analytics.inquiries.total}</p>
+              <p className="text-xs text-gray-500 mt-2 font-semibold">Messages exchanged</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab Content: Properties */}
       {activeTab === 'properties' && (
@@ -332,6 +428,70 @@ export default function ModerationDashboard() {
                   Delete Permanently
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tab Content: Users */}
+      {activeTab === 'users' && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="p-4 font-semibold text-gray-600">Name & Email</th>
+                <th className="p-4 font-semibold text-gray-600">Role</th>
+                <th className="p-4 font-semibold text-gray-600">Status</th>
+                <th className="p-4 font-semibold text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="p-4">
+                    <p className="font-bold text-gray-900">{user.fullName}</p>
+                    <p className="text-sm text-gray-500">{user.email}</p>
+                  </td>
+                  <td className="p-4"><span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{user.role}</span></td>
+                  <td className="p-4">
+                    {user.isSuspended ? <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">SUSPENDED</span> : <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">ACTIVE</span>}
+                  </td>
+                  <td className="p-4">
+                    <button onClick={() => handleToggleUserSuspension(user.id)} className={`px-3 py-1 rounded text-xs font-bold transition ${user.isSuspended ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
+                      {user.isSuspended ? 'Restore Access' : 'Suspend User'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Tab Content: Disputes */}
+      {activeTab === 'disputes' && (
+        <div className="space-y-6">
+          {disputes.length === 0 && <p className="text-gray-500 text-center p-8 bg-white shadow rounded-lg">No active disputes.</p>}
+          {disputes.map(dispute => (
+            <div key={dispute.id} className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${dispute.status === 'OPEN' ? 'border-red-500' : 'border-gray-300'}`}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">Dispute <span>#{dispute.id.slice(-6)}</span></h3>
+                  <p className="text-sm text-gray-600 mt-1">Property: <span className="font-semibold">{dispute.property?.title || 'General Account Dispute'}</span></p>
+                  <p className="text-sm text-gray-600 mt-1">Reported by: <strong>{dispute.buyer?.fullName}</strong> vs. Agent: <strong>{dispute.agent?.fullName}</strong></p>
+                </div>
+                <span className={`px-3 py-1 rounded text-xs font-bold ${dispute.status === 'OPEN' ? 'bg-red-100 text-red-800' : 'bg-gray-200 text-gray-800'}`}>{dispute.status}</span>
+              </div>
+              <div className="bg-red-50 text-red-900 p-4 rounded border border-red-100 italic mb-4">"{dispute.reason}"</div>
+              
+              {dispute.adminNotes && <div className="bg-blue-50 text-blue-900 p-4 rounded border border-blue-100 mb-4"><strong className="block mb-1">Admin Notes/Resolution:</strong>{dispute.adminNotes}</div>}
+              
+              {dispute.status === 'OPEN' && (
+                <div className="flex gap-3 pt-2 border-t">
+                  <button onClick={() => handleResolveDispute(dispute.id, 'RESOLVED')} className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 shadow-sm text-sm">Mark Resolved</button>
+                  <button onClick={() => handleResolveDispute(dispute.id, 'DISMISSED')} className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300 shadow-sm text-sm">Dismiss Claim</button>
+                </div>
+              )}
             </div>
           ))}
         </div>

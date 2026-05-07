@@ -183,6 +183,24 @@ export default function PropertyDetails() {
     }
   };
 
+  const handleRaiseDispute = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return alert('Please log in to raise a dispute.');
+    const reason = prompt('Please describe the issue (e.g. undisclosed defects, fake property, unresponsive agent, harassment):');
+    if (!reason) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/disputes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ agentId: property.agent.id, propertyId: property.id, reason })
+      });
+      const data = await res.json();
+      if (data.success) alert('Dispute raised successfully. Our admins will investigate immediately.');
+      else alert(data.error);
+    } catch (err) { alert('Failed to raise dispute'); }
+  };
+
   if (isLoading) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-gray-600">Loading property details...</div>;
   if (error || !property) return <div className="max-w-6xl mx-auto p-6 mt-8 text-center text-red-600">{error || 'Property not found'}</div>;
 
@@ -403,6 +421,10 @@ export default function PropertyDetails() {
                 </button>
               </form>
             )}
+            
+            <button onClick={handleRaiseDispute} className="w-full mt-4 text-xs font-bold text-red-500 hover:text-red-700 hover:underline transition text-center">
+              🚩 Report Issue / Raise Dispute
+            </button>
           </div>
         </div>
       </div>
@@ -427,6 +449,12 @@ export default function PropertyDetails() {
                     </div>
                   </div>
                   <p className="text-gray-700 mt-2">{review.description}</p>
+                  {review.agentReply && (
+                    <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-100 text-sm">
+                      <p className="font-bold text-blue-900 mb-1">Agent's Reply:</p>
+                      <p className="text-gray-800">{review.agentReply}</p>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (

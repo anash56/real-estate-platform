@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -7,12 +7,19 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'BUYER' | 'AGENT' | 'ADMIN'>('BUYER');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isLogin && !acceptedTerms) {
+      alert('You must accept the Terms and Ethical Guidelines to register.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -22,7 +29,7 @@ export default function Login() {
         
       const payload = isLogin 
         ? { email, password } 
-        : { email, password, fullName, role };
+        : { email, password, fullName, role, acceptedTerms };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -104,6 +111,24 @@ export default function Login() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
+              </div>
+
+              <div className="flex items-start mt-4">
+                <div className="flex items-center h-5">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    required
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="terms" className="font-medium text-gray-700 cursor-pointer">
+                    I agree to the <Link to="/terms" target="_blank" className="text-blue-600 hover:underline">Terms</Link>, <Link to="/privacy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</Link>, and <Link to="/ethical-code" target="_blank" className="text-blue-600 hover:underline">Ethical Code</Link>.
+                  </label>
+                </div>
               </div>
             </>
           )}

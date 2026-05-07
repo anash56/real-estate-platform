@@ -140,6 +140,23 @@ router.get('/sent', auth, async (req: Request, res: Response) => {
 });
 
 // ============================================
+// ROUTE: GET /api/inquiries/:id
+// ============================================
+// Get inquiry details
+
+router.get('/:id', auth, async (req: Request, res: Response) => {
+  try {
+    const inquiry = await prisma.inquiry.findUnique({
+      where: { id: req.params.id as string },
+      include: { property: true }
+    });
+
+    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
+    res.json({ success: true, data: { ...inquiry, budget: inquiry.budget?.toString() } });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to fetch inquiry' }); }
+});
+
+// ============================================
 // ROUTE: PUT /api/inquiries/:id/respond
 // ============================================
 // For Agents: Respond to a buyer's inquiry

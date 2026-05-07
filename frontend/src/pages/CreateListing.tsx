@@ -216,12 +216,14 @@ export default function CreateListing() {
       <div className="flex items-center mb-8">
         <div className={`flex-1 h-2 rounded-l ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
         <div className={`flex-1 h-2 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
-        <div className={`flex-1 h-2 rounded-r ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`flex-1 h-2 ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`flex-1 h-2 rounded-r ${step >= 4 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
       </div>
       <div className="flex justify-between text-sm font-bold text-gray-500 mb-8">
-        <span className={step >= 1 ? 'text-blue-600' : ''}>1. Basic Details</span>
+        <span className={step >= 1 ? 'text-blue-600' : ''}>1. Details</span>
         <span className={step >= 2 ? 'text-blue-600' : ''}>2. Legal Documents</span>
         <span className={step >= 3 ? 'text-blue-600' : ''}>3. Disclosures</span>
+        <span className={step >= 4 ? 'text-blue-600' : ''}>4. Preview</span>
       </div>
 
       <div className="bg-white p-8 rounded-xl shadow border border-gray-100">
@@ -388,7 +390,7 @@ export default function CreateListing() {
 
         {/* STEP 3: Defect Disclosures */}
         {step === 3 && (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             <div className="bg-orange-50 p-4 rounded text-orange-800 border border-orange-200">
               <strong>⚠️ Mandatory Disclosure:</strong> Hiding known defects violates platform terms and can lead to a permanent ban.
             </div>
@@ -444,11 +446,54 @@ export default function CreateListing() {
                 {isSavingDraft ? 'Saving...' : 'Save as Draft'}
               </button>
               <button 
-                type="submit" 
-                disabled={!disclosures.agentSignedOff || isSubmitting || isSavingDraft}
+                type="button" 
+                onClick={() => setStep(4)}
+                disabled={!disclosures.agentSignedOff}
                 className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Submitting to Moderation Queue...' : 'Submit Listing for Review ✅'}
+                Next Step: Preview Listing ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Preview */}
+        {step === 4 && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-2xl font-bold border-b pb-2">Preview Your Listing</h2>
+            
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
+               <h3 className="text-2xl font-bold text-gray-900">{propertyDetails.title || 'Untitled'}</h3>
+               <p className="text-xl font-extrabold text-blue-600">₹{propertyDetails.price || '0'}</p>
+               <p className="text-gray-600">{propertyDetails.address || 'No Address'}, {propertyDetails.city || 'No City'}</p>
+               <div className="mt-4">
+                 <h4 className="font-bold">Description</h4>
+                 <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{propertyDetails.description || 'No description provided.'}</p>
+               </div>
+               
+               <div className="mt-4">
+                 <h4 className="font-bold text-orange-800">Defect Disclosures Declared</h4>
+                 <ul className="text-sm text-orange-700 list-disc pl-5 mt-1">
+                   <li>Structural Issues: {disclosures.hasStructuralIssues ? `Yes - ${disclosures.structuralIssuesDetails}` : 'None'}</li>
+                   <li>Legal Disputes: {disclosures.hasLegalDisputes ? `Yes - ${disclosures.legalDisputesDetails}` : 'None'}</li>
+                 </ul>
+               </div>
+
+               <div className="mt-4 text-sm text-gray-500">
+                 <strong>Note:</strong> Once submitted, your listing will be sent to the moderation queue. You will not be able to edit it until it is approved or rejected.
+               </div>
+            </div>
+
+            <div className="flex gap-4 pt-4 border-t mt-8">
+              <button type="button" onClick={() => setStep(3)} className="bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded hover:bg-gray-300 transition">
+                ⬅ Back to Disclosures
+              </button>
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Submitting to Moderation Queue...' : 'Confirm & Submit Listing ✅'}
               </button>
             </div>
           </form>

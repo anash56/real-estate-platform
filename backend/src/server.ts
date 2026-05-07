@@ -18,6 +18,7 @@ import inquiryRoutes from './routes/inquiry';
 import moderationRoutes from './routes/moderation';
 import tourRoutes from './routes/tour';
 import notificationRoutes from './routes/notification';
+import disputeRoutes from './routes/dispute';
 
 dotenv.config();
 
@@ -127,6 +128,7 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/moderation', moderationRoutes);
 app.use('/api/tours', tourRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/disputes', disputeRoutes);
 
 // 404 handler
 app.use((req, res) => {

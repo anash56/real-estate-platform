@@ -4,13 +4,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function AgentDashboard() {
-  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'tours' | 'analytics'>('analytics');
+  const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'tours' | 'analytics' | 'reviews'>('analytics');
   const [listings, setListings] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [tours, setTours] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeResponseId, setActiveResponseId] = useState<string | null>(null);
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
+  const [replyText, setReplyText] = useState('');
   const [analytics, setAnalytics] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -43,6 +46,13 @@ export default function AgentDashboard() {
         });
         const tourData = await tourRes.json();
         if (tourData.success) setTours(tourData.data);
+
+        // Fetch Reviews
+        const revsRes = await fetch('http://localhost:5000/api/properties/agent/reviews', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const revsData = await revsRes.json();
+        if (revsData.success) setReviews(revsData.data);
 
         // Fetch Analytics
         const analyticsRes = await fetch('http://localhost:5000/api/properties/agent/analytics', {
@@ -103,6 +113,24 @@ export default function AgentDashboard() {
     } catch (err) { alert('Failed to update tour status'); }
   };
 
+  const handleReplyReview = async (reviewId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/properties/reviews/${reviewId}/reply`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reply: replyText })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReviews(reviews.map(r => r.id === reviewId ? { ...r, agentReply: replyText, repliedAt: new Date().toISOString() } : r));
+        setActiveReplyId(null);
+        setReplyText('');
+      } else alert(data.error);
+    } catch (err) { alert('Error replying to review'); }
+  };
+
   const getStatusBadge = (property: any) => {
     if (property.status === 'DRAFT') return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-bold">DRAFT</span>;
     if (property.moderationStatus === 'PENDING_REVIEW') return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">IN REVIEW</span>;
@@ -154,6 +182,12 @@ export default function AgentDashboard() {
           className={`pb-3 px-2 ${activeTab === 'tours' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
         >
           Tour Requests ({tours.filter(t => t.status === 'PENDING').length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('reviews')}
+          className={`pb-3 px-2 ${activeTab === 'reviews' ? 'border-b-4 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Reviews ({reviews.length})
         </button>
       </div>
 
@@ -317,6 +351,44 @@ export default function AgentDashboard() {
                     Decline / Reject
                   </button>
                 </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tab Content: Reviews */}
+      {activeTab === 'reviews' && (
+        <div className="space-y-6">
+          {reviews.length === 0 && <p className="text-gray-500">No reviews on your properties yet.</p>}
+          {reviews.map(review => (
+            <div key={review.id} className="bg-white rounded-xl shadow border p-6">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">{review.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">On: <strong>{review.property?.title}</strong> • By: {review.reviewer?.fullName}</p>
+                </div>
+                <div className="flex text-yellow-400 text-lg">
+                  {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                </div>
+              </div>
+              <p className="text-gray-800 bg-gray-50 p-4 rounded-lg italic border border-gray-100 mb-4">"{review.description}"</p>
+
+              {review.agentReply ? (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <p className="text-sm font-bold text-blue-800 mb-1">Your Public Reply:</p>
+                  <p className="text-gray-700">{review.agentReply}</p>
+                </div>
+              ) : activeReplyId === review.id ? (
+                <div className="mt-4">
+                  <textarea className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" rows={3} placeholder="Type your public reply here..." value={replyText} onChange={(e) => setReplyText(e.target.value)}></textarea>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => handleReplyReview(review.id)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Post Reply</button>
+                    <button onClick={() => { setActiveReplyId(null); setReplyText(''); }} className="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setActiveReplyId(review.id)} className="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded font-bold hover:bg-blue-50">Write Public Reply</button>
               )}
             </div>
           ))}

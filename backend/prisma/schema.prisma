@@ -16,9 +16,11 @@ model User {
   emailVerified     Boolean  @default(false)
   phoneVerified     Boolean  @default(false)
   phone             String?  @unique
+  isSuspended       Boolean  @default(false)
   profilePhoto      String?
   governmentId      String?
   idVerified        Boolean  @default(false)
+  agentLicense      String?
   emailOtp          String?
   emailOtpExpiry    DateTime?
   phoneOtp          String?
@@ -35,6 +37,8 @@ model User {
   agreements        UserAgreement[]
   notifications     Notification[]
   savedSearches     SavedSearch[]
+  buyerDisputes     Dispute[] @relation("BuyerDisputes")
+  agentDisputes     Dispute[] @relation("AgentDisputes")
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -76,6 +80,7 @@ model Property {
   defectDisclosure  DefectDisclosure?
   legalDocuments    LegalDocument[]
   priceHistory      PriceHistory[]
+  disputes          Dispute[]
 
   images            PropertyImage[]
   inquiries         Inquiry[]
@@ -102,6 +107,27 @@ model PropertyImage {
   uploadedAt        DateTime @default(now())
   
   @@index([propertyId])
+}
+
+model Dispute {
+  id          String   @id @default(cuid())
+  
+  buyerId     String
+  buyer       User     @relation("BuyerDisputes", fields: [buyerId], references: [id])
+  agentId     String
+  agent       User     @relation("AgentDisputes", fields: [agentId], references: [id])
+  propertyId  String?
+  property    Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  reason      String   @db.Text
+  status      String   @default("OPEN") // OPEN, RESOLVED, DISMISSED
+  adminNotes  String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([buyerId])
+  @@index([agentId])
 }
 
 model SavedSearch {
@@ -181,6 +207,8 @@ model Review {
   description       String   @db.Text
   isVerified        Boolean  @default(false)
   isApproved        Boolean  @default(true)
+  agentReply        String?  @db.Text
+  repliedAt         DateTime?
   
   createdAt         DateTime @default(now())
   

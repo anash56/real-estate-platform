@@ -5,6 +5,7 @@ export default function ProfileSettings() {
   const [user, setUser] = useState<any>(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [agentLicense, setAgentLicense] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -30,6 +31,7 @@ export default function ProfileSettings() {
           setUser(data.data);
           setFullName(data.data.fullName || '');
           setPhone(data.data.phone || '');
+          setAgentLicense(data.data.agentLicense || '');
         }
       } catch (err) {
         console.error(err);
@@ -51,12 +53,12 @@ export default function ProfileSettings() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ fullName, phone })
+        body: JSON.stringify({ fullName, phone, agentLicense })
       });
       const data = await res.json();
       if (data.success) {
         alert('Profile updated successfully');
-        setUser({ ...user, fullName, phone, phoneVerified: data.data.phoneVerified });
+        setUser({ ...user, fullName, phone, agentLicense, phoneVerified: data.data.phoneVerified });
       } else {
         alert(data.error);
       }
@@ -258,7 +260,20 @@ export default function ProfileSettings() {
 
             {user?.role === 'AGENT' && (
               <div className="mt-8 pt-8 border-t border-gray-200">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">KYC Verification</h2>
+                <h2 className="text-xl font-bold mb-4 text-gray-900">KYC & License Verification</h2>
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Real Estate License Number</label>
+                  <input 
+                    type="text" 
+                    className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="e.g. RERA-12345678"
+                    value={agentLicense}
+                    onChange={e => setAgentLicense(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Providing your license number increases buyer trust.</p>
+                </div>
+                
                 <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
                   {user?.idVerified ? (
                     <p className="text-green-600 font-bold flex items-center gap-2">✅ Government ID Verified</p>

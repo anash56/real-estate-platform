@@ -201,6 +201,114 @@ router.put('/users/:userId/verify-id', auth, async (req: Request, res: Response)
 });
 
 // ============================================
+// ROUTE: GET /api/moderation/analytics
+// ============================================
+// Fetch platform-wide analytics for admin
+router.get('/analytics', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+    const totalUsers = await (prisma as any).user.count();
+    const suspendedUsers = await (prisma as any).user.count({ where: { isSuspended: true } });
+    
+    const totalProperties = await (prisma as any).property.count();
+    const activeProperties = await (prisma as any).property.count({ where: { status: 'ACTIVE' } });
+    const pendingProperties = await (prisma as any).property.count({ where: { moderationStatus: 'PENDING_REVIEW' } });
+    
+    const totalDisputes = await (prisma as any).dispute.count();
+    const openDisputes = await (prisma as any).dispute.count({ where: { status: 'OPEN' } });
+    
+    const totalInquiries = await (prisma as any).inquiry.count();
+
+    res.json({
+      success: true,
+      data: {
+        users: { total: totalUsers, suspended: suspendedUsers },
+        properties: { total: totalProperties, active: activeProperties, pending: pendingProperties },
+        disputes: { total: totalDisputes, open: openDisputes },
+        inquiries: { total: totalInquiries }
+      }
+    });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to fetch analytics' }); }
+});
+
+// ============================================
+// ROUTE: GET /api/moderation/users
+// ============================================
+// Fetch all platform users
+router.get('/users', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+    
+    const users = await (prisma as any).user.findMany({
+      select: { id: true, fullName: true, email: true, role: true, isSuspended: true, createdAt: true, idVerified: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: users });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to fetch users' }); }
+});
+
+// ============================================
+// ROUTE: PUT /api/moderation/users/:id/suspend
+// ============================================
+// Toggle user suspension status
+router.put('/users/:id/suspend', auth, async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await checkIsAdmin(req.userId as string);
+    if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+    
+    const { id } = req.params;
+    const user = await (prisma as any).user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    
+    const updatedUser = await (prisma as any).user.update({
+      where: { id },
+      data: { isSuspended: !user.isSuspended }
+    });
+    res.json({ success: true, message: `User ${updatedUser.isSuspended ? 'suspended' : 'activated'}`, data: updatedUser });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to update user status' }); }
+});
+
+// ============================================
+// ROUTE: GET /api/moderation/disputes
+// ============================================
+// Fetch all disputes
+router.get('/disputes', auth, async (req: Request, res: Response) => {
+  try {
+     const isAdmin = await checkIsAdmin(req.userId as string);
+     if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+     
+     const disputes = await (prisma as any).dispute.findMany({
+       include: {
+         buyer: { select: { fullName: true, email: true } },
+         agent: { select: { fullName: true, email: true } },
+         property: { select: { title: true } }
+       },
+       orderBy: { createdAt: 'desc' }
+     });
+     res.json({ success: true, data: disputes });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to fetch disputes' }); }
+});
+
+// ============================================
+// ROUTE: PUT /api/moderation/disputes/:id/resolve
+// ============================================
+router.put('/disputes/:id/resolve', auth, async (req: Request, res: Response) => {
+  try {
+     const isAdmin = await checkIsAdmin(req.userId as string);
+     if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin access required' });
+     
+     const { id } = req.params;
+     const { status, adminNotes } = req.body;
+     
+     const updatedDispute = await (prisma as any).dispute.update({ where: { id }, data: { status, adminNotes } });
+     res.json({ success: true, message: `Dispute marked as ${status}`, data: updatedDispute });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to resolve dispute' }); }
+});
+
+// ============================================
 // ROUTE: GET /api/moderation/reviews
 // ============================================
 // Fetch all reviews for moderation

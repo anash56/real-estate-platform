@@ -215,6 +215,25 @@ router.get('/agent/analytics', auth, async (req: Request, res: Response) => {
 });
 
 // ============================================
+// ROUTE 2.6: GET /api/properties/agent/reviews
+// ============================================
+// Get all reviews for an agent's properties
+
+router.get('/agent/reviews', auth, async (req: Request, res: Response) => {
+  try {
+    const reviews = await (prisma as any).review.findMany({
+      where: { property: { agentId: req.userId as string } },
+      include: {
+        property: { select: { title: true } },
+        reviewer: { select: { fullName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: reviews });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to fetch reviews' }); }
+});
+
+// ============================================
 // ROUTE 3: GET /api/properties/agent
 // ============================================
 // Get all properties listed by the logged-in agent
@@ -450,6 +469,29 @@ router.post('/:id/reviews', auth, async (req: Request, res: Response) => {
     console.error('❌ Add review error:', error);
     res.status(500).json({ success: false, error: 'Failed to submit review' });
   }
+});
+
+// ============================================
+// ROUTE 8.5: PUT /api/properties/reviews/:id/reply
+// ============================================
+// Agent replies to a review
+
+router.put('/reviews/:id/reply', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reply } = req.body;
+
+    const review = await (prisma as any).review.findUnique({
+      where: { id: id as string },
+      include: { property: true }
+    });
+
+    if (!review) return res.status(404).json({ success: false, error: 'Review not found' });
+    if (review.property.agentId !== req.userId) return res.status(403).json({ success: false, error: 'Unauthorized to reply to this review' });
+
+    const updatedReview = await (prisma as any).review.update({ where: { id: id as string }, data: { agentReply: reply, repliedAt: new Date() } });
+    res.json({ success: true, message: 'Reply posted successfully', data: updatedReview });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to post reply' }); }
 });
 
 // ============================================
