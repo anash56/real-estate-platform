@@ -17,6 +17,10 @@ model User {
   phoneVerified     Boolean  @default(false)
   phone             String?  @unique
   profilePhoto      String?
+  emailOtp          String?
+  emailOtpExpiry    DateTime?
+  phoneOtp          String?
+  phoneOtpExpiry    DateTime?
   
   properties        Property[] @relation("AgentProperties")
   inquiries         Inquiry[]

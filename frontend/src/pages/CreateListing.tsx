@@ -5,6 +5,7 @@ export default function CreateListing() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Step 1: Property Details State
   const [propertyDetails, setPropertyDetails] = useState({
@@ -32,6 +33,65 @@ export default function CreateListing() {
 
   const handleAddDocument = () => {
     setDocuments([...documents, { type: docType, name: `mock_document_${Date.now()}.pdf` }]);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!propertyDetails.title) {
+      alert('Please provide at least a title to save a draft.');
+      return;
+    }
+    setIsSavingDraft(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      // 1. Create Property Record as a DRAFT
+      const propertyPayload = {
+        title: propertyDetails.title,
+        description: propertyDetails.description || 'Description not provided',
+        propertyType: propertyDetails.propertyType,
+        price: propertyDetails.price || 0,
+        address: propertyDetails.address || 'Address not provided',
+        city: propertyDetails.city || 'City not provided',
+        state: 'State',
+        pincode: '000000',
+        bedrooms: 1,
+        bathrooms: 1,
+        area: 1000,
+        latitude: 0.0,
+        longitude: 0.0,
+        amenities: [],
+        isDraft: true // Set the draft flag to true
+      };
+
+      const propRes = await fetch('http://localhost:5000/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(propertyPayload)
+      });
+      
+      const propData = await propRes.json();
+      if (!propData.success) throw new Error(propData.error || 'Failed to save draft');
+      
+      const propertyId = propData.data.property.id;
+
+      // 2. Upload any images that have been selected
+      if (imageFiles.length > 0) {
+        const formData = new FormData();
+        imageFiles.forEach(file => formData.append('images', file));
+        await fetch(`http://localhost:5000/api/properties/${propertyId}/images`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+      }
+
+      alert('Draft saved successfully!');
+      navigate('/dashboard/agent');
+    } catch (error: any) {
+      alert(`Error saving draft: ${error.message}`);
+    } finally {
+      setIsSavingDraft(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -290,8 +350,16 @@ export default function CreateListing() {
                 ⬅ Back
               </button>
               <button 
+                type="button" 
+                onClick={handleSaveDraft}
+                disabled={isSavingDraft || isSubmitting}
+                className="bg-gray-500 text-white font-bold py-3 px-6 rounded hover:bg-gray-600 transition disabled:opacity-50"
+              >
+                {isSavingDraft ? 'Saving...' : 'Save as Draft'}
+              </button>
+              <button 
                 type="submit" 
-                disabled={!disclosures.agentSignedOff || isSubmitting}
+                disabled={!disclosures.agentSignedOff || isSubmitting || isSavingDraft}
                 className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Submitting to Moderation Queue...' : 'Submit Listing for Review ✅'}

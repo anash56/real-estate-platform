@@ -35,13 +35,20 @@ const router = express.Router();
 
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName, role } = req.body;
+    const { email, password, fullName, role, acceptedTerms } = req.body;
 
     // ✓ Validation
     if (!email || !password || !fullName) {
       return res.status(400).json({
         success: false,
         error: 'Email, password, and full name are required'
+      });
+    }
+
+    if (!acceptedTerms) {
+      return res.status(400).json({
+        success: false,
+        error: 'You must accept the ethical guidelines and terms of service to register.'
       });
     }
 
@@ -88,7 +95,14 @@ router.post('/signup', async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         fullName,
-        role: role || 'BUYER' // Use frontend provided role or default
+        role: role || 'BUYER', // Use frontend provided role or default
+        agreements: {
+          create: {
+            agreementType: 'TERMS_AND_ETHICAL_GUIDELINES',
+            accepted: true,
+            acceptedAt: new Date()
+          }
+        }
       }
     });
 
@@ -237,6 +251,8 @@ router.get('/me', auth, async (req: Request, res: Response) => {
         fullName: user.fullName,
         role: user.role,
         profilePhoto: user.profilePhoto,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified,
         createdAt: user.createdAt
       }
     });
@@ -271,9 +287,14 @@ router.post('/logout', auth, (req: Request, res: Response) => {
 router.put('/profile', auth, async (req: Request, res: Response) => {
   try {
     const { fullName, phone } = req.body;
+    
+    // If the phone number is changed, reset its verification status
+    const currentUser = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    const phoneChanged = currentUser?.phone !== phone;
+
     const user = await prisma.user.update({
       where: { id: req.userId as string },
-      data: { fullName, phone }
+      data: { fullName, phone, phoneVerified: phoneChanged ? false : currentUser?.phoneVerified }
     });
     res.json({ success: true, message: 'Profile updated successfully', data: user });
   } catch (error) {
@@ -303,6 +324,83 @@ router.post('/profile/avatar', auth, upload.single('avatar'), async (req: Reques
     console.error('❌ Avatar upload error:', error);
     res.status(500).json({ success: false, error: 'Failed to upload avatar' });
   }
+});
+
+// ============================================
+// ROUTE 7: POST /api/auth/verify/email/send
+// ============================================
+// Generate and "send" an email OTP
+
+router.post('/verify/email/send', auth, async (req: Request, res: Response) => {
+  try {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60000); // Expires in 10 mins
+    
+    await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { emailOtp: otp, emailOtpExpiry: expiry }
+    });
+    
+    console.log(`\n📧 [MOCK EMAIL] To User: Your Email Verification OTP is: ${otp}\n`);
+    res.json({ success: true, message: 'OTP sent to your email' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to send OTP' });
+  }
+});
+
+// ============================================
+// ROUTE 8: POST /api/auth/verify/email/confirm
+// ============================================
+// Verify the email OTP
+
+router.post('/verify/email/confirm', auth, async (req: Request, res: Response) => {
+  try {
+    const { otp } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    
+    if (!user || user.emailOtp !== otp || !user.emailOtpExpiry || user.emailOtpExpiry < new Date()) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
+    }
+    
+    await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { emailVerified: true, emailOtp: null, emailOtpExpiry: null }
+    });
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to verify OTP' });
+  }
+});
+
+// ============================================
+// ROUTE 9: POST /api/auth/verify/phone/send
+// ============================================
+router.post('/verify/phone/send', auth, async (req: Request, res: Response) => {
+  try {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60000); 
+    await prisma.user.update({
+      where: { id: req.userId as string },
+      data: { phoneOtp: otp, phoneOtpExpiry: expiry }
+    });
+    console.log(`\n📱 [MOCK SMS] To User: Your Phone Verification OTP is: ${otp}\n`);
+    res.json({ success: true, message: 'OTP sent to your phone' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to send OTP' });
+  }
+});
+
+// ============================================
+// ROUTE 10: POST /api/auth/verify/phone/confirm
+// ============================================
+router.post('/verify/phone/confirm', auth, async (req: Request, res: Response) => {
+  try {
+    const { otp } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user || user.phoneOtp !== otp || !user.phoneOtpExpiry || user.phoneOtpExpiry < new Date()) return res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
+    await prisma.user.update({ where: { id: req.userId as string }, data: { phoneVerified: true, phoneOtp: null, phoneOtpExpiry: null }});
+    res.json({ success: true, message: 'Phone verified successfully' });
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to verify OTP' }); }
 });
 
 export default router;
