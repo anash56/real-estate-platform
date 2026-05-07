@@ -21,6 +21,8 @@ model User {
   emailOtpExpiry    DateTime?
   phoneOtp          String?
   phoneOtpExpiry    DateTime?
+  resetPasswordOtp       String?
+  resetPasswordOtpExpiry DateTime?
   
   properties        Property[] @relation("AgentProperties")
   inquiries         Inquiry[]

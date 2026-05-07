@@ -103,7 +103,7 @@ export default function ProfileSettings() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`OTP sent to your ${type}! Check the backend terminal.`);
+        alert(`OTP sent to your ${type}!`);
         type === 'email' ? setShowEmailOtp(true) : setShowPhoneOtp(true);
       } else alert(data.error);
     } catch (err) { alert(`Error sending ${type} OTP`); }

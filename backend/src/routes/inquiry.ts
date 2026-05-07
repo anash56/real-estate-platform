@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import auth from '../middleware/auth';
+import { sendEmail } from '../utils/email';
 
 const router = express.Router();
 
@@ -16,7 +17,12 @@ router.post('/:propertyId', auth, async (req: Request, res: Response) => {
 
     // 1. Verify property exists
     const property = await prisma.property.findUnique({
-      where: { id: propertyId as string }
+      where: { id: propertyId as string },
+      include: {
+        agent: {
+          select: { email: true, fullName: true }
+        }
+      }
     });
 
     if (!property) {
@@ -39,6 +45,13 @@ router.post('/:propertyId', auth, async (req: Request, res: Response) => {
         buyerPhoneHidden: true   // Ethical platform default
       }
     });
+
+    // 3. Send email notification to agent
+    if (property.agent) {
+        const subject = `You have a new inquiry on "${property.title}"`;
+        const text = `Hi ${property.agent.fullName},\n\nA potential buyer has sent an inquiry for your property listing: "${property.title}".\n\nMessage from buyer:\n"${message}"\n\nPlease log in to your dashboard to respond.`;
+        await sendEmail(property.agent.email, subject, text);
+    }
 
     res.status(201).json({
       success: true,

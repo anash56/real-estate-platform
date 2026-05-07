@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import { prisma } from './utils/prisma';
 import path from 'path';
+import { sendEmail } from './utils/email';
 
 // ← ADD THIS
 import authRoutes from './routes/auth';
@@ -53,6 +54,28 @@ io.on('connection', (socket) => {
         include: { sender: { select: { fullName: true, role: true } } }
       });
       io.to(inquiryId).emit('receive_message', message);
+
+      // Send email notification to the agent if the buyer sent the message
+      const inquiry = await prisma.inquiry.findUnique({
+        where: { id: inquiryId },
+        include: {
+          buyer: { select: { id: true, fullName: true } },
+          property: {
+            select: {
+              title: true,
+              agent: {
+                select: { id: true, fullName: true, email: true }
+              }
+            }
+          }
+        }
+      });
+
+      if (inquiry && inquiry.property.agent && senderId === inquiry.buyer.id) {
+        const subject = `New message regarding "${inquiry.property.title}"`;
+        const text = `Hi ${inquiry.property.agent.fullName},\n\nYou have a new chat message from ${inquiry.buyer.fullName} regarding your property "${inquiry.property.title}".\n\nMessage:\n"${content}"\n\nLog in to your dashboard to reply in real-time.`;
+        await sendEmail(inquiry.property.agent.email, subject, text);
+      }
     } catch (error) {
       console.error('Socket message error:', error);
     }
